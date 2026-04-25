@@ -1,1349 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>EchoVault — Your Emotional Universe</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&family=Cinzel+Decorative:wght@400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<style>
-/* ═══════════════════════════════════════════
-   DESIGN TOKENS
-═══════════════════════════════════════════ */
-:root {
-  --void:#050508;--deep:#0a0a12;--surface:#12121f;--surface2:#16162a;
-  --border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.15);
-  --muted:rgba(255,255,255,.52);--text:rgba(255,255,255,.94);
-  --gold:#c9a84c;--gold-dim:rgba(201,168,76,.35);--gold-faint:rgba(201,168,76,.08);
-  --calm:#5b8fa8;--chaos:#c44b4b;--reflective:#7c6fa0;
-  --anxious:#c47a3a;--joyful:#7aab6e;--empty:#4a4a5a;
-  --font-display:'Cinzel Decorative',serif;
-  --font-body:'Cormorant Garamond',serif;
-  --font-mono:'DM Mono',monospace;
-  --font-editorial:'Playfair Display',serif;
-  --ease:cubic-bezier(.16,1,.3,1);
-  --ease-in:cubic-bezier(.4,0,1,1);
-  --ease-out:cubic-bezier(0,0,.6,1);
-  --radius:8px;
-  --breath-scale:1;
-}
-
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  background:var(--void);color:var(--text);
-  font-family:var(--font-body);font-size:16px;line-height:1.6;
-  min-height:100vh;overflow-x:hidden;
-  transition:background .8s,color .8s;
-}
-button{font-family:inherit;cursor:pointer}
-textarea,input{font-family:inherit}
-
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
-}
-:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:2px}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:rgba(201,168,76,.25);border-radius:2px}
-
-/* ── CANVAS LAYERS ── */
-#cosmos-canvas,#ripple-canvas,#connection-canvas{
-  position:fixed;inset:0;z-index:0;pointer-events:none;
-}
-#ripple-canvas{z-index:1}
-#connection-canvas{z-index:2}
-
-/* ── BREATHING OVERLAY ── */
-#breath-layer{
-  position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse at 50% 50%,rgba(201,168,76,.032) 0%,transparent 70%);
-  transform:scale(var(--breath-scale));
-  transition:transform 4s ease-in-out;
-}
-
-#ghost-layer{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-#silence-layer{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
-
-#whip-canvas{
-  position:fixed;inset:0;z-index:2;pointer-events:none;
-  opacity:0;transition:opacity .3s;
-}
-
-/* ── LAYOUT ── */
-.app-shell{position:relative;z-index:10;min-height:100vh}
-
-/* ── NAV ── */
-nav{
-  position:fixed;top:0;left:0;right:0;z-index:100;
-  display:flex;align-items:center;justify-content:space-between;
-  padding:16px 28px;
-  background:linear-gradient(to bottom,rgba(5,5,8,.98) 0%,transparent 100%);
-  backdrop-filter:blur(0px);
-}
-.nav-logo{
-  font-family:var(--font-display);font-size:13px;
-  letter-spacing:.18em;color:var(--gold);text-decoration:none;
-  position:relative;font-weight:400;
-}
-.nav-logo::after{
-  content:'';position:absolute;bottom:-3px;left:0;right:0;height:1px;
-  background:linear-gradient(to right,transparent,var(--gold-dim),transparent);
-}
-.nav-links{display:flex;gap:4px;list-style:none}
-.nav-links button{
-  background:none;border:none;color:var(--muted);
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
-  padding:6px 13px;border-radius:20px;
-  transition:color .25s,background .25s,border-color .25s;
-  text-transform:uppercase;border:1px solid transparent;
-}
-.nav-links button:hover{color:var(--text);background:rgba(255,255,255,.06)}
-.nav-links button.active{color:var(--gold);border-color:var(--gold-dim);background:var(--gold-faint)}
-
-/* ── VIEWS ── */
-.view{display:none;min-height:100vh;padding:96px 28px 80px}
-.view.active{display:block}
-
-/* ── HOME ── */
-#view-home{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;text-align:center;min-height:100vh;padding:80px 24px;
-}
-#view-home.active{display:flex}
-
-.hero-eyebrow{
-  font-family:var(--font-mono);font-size:11px;letter-spacing:.35em;
-  color:var(--gold);text-transform:uppercase;margin-bottom:22px;
-  opacity:0;animation:fadeUp 1s .3s var(--ease) forwards;
-}
-.hero-title{
-  font-family:var(--font-display);font-size:clamp(32px,8vw,80px);
-  font-weight:400;line-height:1.05;margin-bottom:22px;
-  opacity:0;animation:fadeUp 1s .5s var(--ease) forwards;
-}
-.hero-title span{color:var(--gold)}
-.hero-sub{
-  font-size:clamp(16px,2.4vw,21px);font-weight:300;font-style:italic;
-  color:var(--muted);max-width:500px;margin-bottom:48px;
-  opacity:0;animation:fadeUp 1s .7s var(--ease) forwards;
-  line-height:1.7;
-}
-.hero-actions{
-  display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
-  opacity:0;animation:fadeUp 1s .9s var(--ease) forwards;
-}
-
-.btn-primary{
-  background:var(--gold);color:var(--void);border:none;
-  padding:14px 36px;font-family:var(--font-mono);font-size:11px;
-  letter-spacing:.18em;text-transform:uppercase;border-radius:3px;
-  transition:background .3s,transform .2s,box-shadow .3s;
-  font-weight:400;
-}
-.btn-primary:hover{background:#d4b45a;transform:translateY(-2px);box-shadow:0 8px 28px rgba(201,168,76,.35)}
-.btn-ghost{
-  background:transparent;color:var(--text);
-  border:1px solid var(--border2);padding:14px 36px;
-  font-family:var(--font-mono);font-size:11px;letter-spacing:.18em;
-  text-transform:uppercase;border-radius:3px;
-  transition:color .3s,border-color .3s,background .3s;
-}
-.btn-ghost:hover{color:var(--gold);border-color:var(--gold-dim);background:var(--gold-faint)}
-
-/* Weather Widget */
-.weather-widget{
-  margin-top:64px;display:flex;flex-direction:column;
-  align-items:center;gap:8px;
-  opacity:0;animation:fadeUp 1s 1.1s var(--ease) forwards;
-}
-.weather-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.28em;color:var(--gold);text-transform:uppercase}
-.weather-display{font-size:44px;line-height:1}
-.weather-text{font-size:14px;font-style:italic;color:var(--muted)}
-
-/* Identity Orb */
-.identity-orb-container{
-  margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:10px;
-  opacity:0;animation:fadeUp 1s 1.3s var(--ease) forwards;
-}
-#identity-orb{width:80px;height:80px;border-radius:50%;animation:orbPulse 4s ease-in-out infinite}
-.orb-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
-
-/* ── IDENTITY CORE ── */
-#identity-core-wrap{
-  margin-top:40px;display:flex;flex-direction:column;align-items:center;gap:12px;
-  opacity:0;animation:fadeUp 1s 1.5s var(--ease) forwards;
-}
-#identity-core-canvas{cursor:pointer;border-radius:50%}
-.identity-core-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.2em;color:rgba(201,168,76,.55);text-transform:uppercase}
-
-/* ── ENTRY VIEW ── */
-.entry-container{max-width:640px;margin:0 auto}
-.view-title{
-  font-family:var(--font-display);font-size:clamp(26px,5vw,44px);
-  font-weight:400;margin-bottom:8px;color:var(--gold);
-  letter-spacing:.05em;
-}
-.view-subtitle{font-size:16px;font-style:italic;color:var(--muted);margin-bottom:44px;line-height:1.6}
-.form-section{margin-bottom:36px}
-.form-label{
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;
-  text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:block;
-  font-weight:400;
-}
-
-/* Mood Grid */
-.mood-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.mood-btn{
-  background:var(--surface);border:1px solid var(--border);color:var(--muted);
-  padding:18px 10px;border-radius:var(--radius);
-  transition:border-color .3s,color .25s,transform .2s,background .3s,box-shadow .3s;
-  display:flex;flex-direction:column;align-items:center;gap:6px;font-size:13px;
-}
-.mood-btn .mood-icon{font-size:22px}
-.mood-btn:hover{border-color:rgba(255,255,255,.25);color:var(--text);transform:translateY(-2px)}
-.mood-btn.selected{color:#fff}
-.mood-btn[data-mood="calm"].selected{background:var(--calm);border-color:var(--calm);box-shadow:0 0 24px rgba(91,143,168,.35)}
-.mood-btn[data-mood="chaos"].selected{background:var(--chaos);border-color:var(--chaos);box-shadow:0 0 24px rgba(196,75,75,.35)}
-.mood-btn[data-mood="reflective"].selected{background:var(--reflective);border-color:var(--reflective);box-shadow:0 0 24px rgba(124,111,160,.35)}
-.mood-btn[data-mood="anxious"].selected{background:var(--anxious);border-color:var(--anxious);box-shadow:0 0 24px rgba(196,122,58,.35)}
-.mood-btn[data-mood="joyful"].selected{background:var(--joyful);border-color:var(--joyful);box-shadow:0 0 24px rgba(122,171,110,.35)}
-.mood-btn[data-mood="empty"].selected{background:var(--empty);border-color:var(--empty);box-shadow:0 0 24px rgba(74,74,90,.35)}
-
-/* Sliders */
-.intensity-row,.silence-row{display:flex;align-items:center;gap:14px}
-.intensity-slider{
-  -webkit-appearance:none;appearance:none;flex:1;height:3px;
-  background:var(--border);outline:none;border-radius:3px;cursor:pointer;
-}
-.intensity-slider::-webkit-slider-thumb{
-  -webkit-appearance:none;width:16px;height:16px;
-  background:var(--gold);border-radius:50%;transition:transform .2s,box-shadow .2s;
-}
-.intensity-slider::-webkit-slider-thumb:hover{transform:scale(1.4);box-shadow:0 0 10px var(--gold)}
-.intensity-value{font-family:var(--font-mono);font-size:24px;font-weight:300;color:var(--gold);min-width:28px;text-align:right}
-.silence-labels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:7px}
-
-/* Textarea */
-.thought-area{
-  width:100%;background:var(--surface);border:1px solid var(--border);
-  color:var(--text);font-size:16px;font-style:italic;line-height:1.8;
-  padding:18px;border-radius:var(--radius);resize:none;min-height:110px;
-  outline:none;transition:border-color .3s,box-shadow .3s;
-}
-.thought-area::placeholder{color:rgba(255,255,255,.22)}
-.thought-area:focus{border-color:var(--gold-dim);box-shadow:0 0 28px rgba(201,168,76,.07)}
-
-/* Void toggle */
-.void-toggle{display:flex;align-items:center;gap:10px;margin-top:10px;cursor:pointer;width:fit-content}
-.toggle-box{
-  width:18px;height:18px;border:1px solid var(--border);border-radius:3px;
-  display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .3s;
-}
-.void-toggle.active .toggle-box{background:var(--gold);border-color:var(--gold);color:var(--void)}
-.toggle-label{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-
-/* Submit */
-.submit-entry-btn{
-  width:100%;background:transparent;border:1px solid var(--gold-dim);
-  color:var(--gold);padding:18px;font-family:var(--font-display);
-  font-size:13px;letter-spacing:.22em;border-radius:3px;
-  transition:background .4s,box-shadow .4s,transform .2s;margin-top:14px;text-transform:uppercase;
-}
-.submit-entry-btn:hover{background:var(--gold-dim);box-shadow:0 0 48px rgba(201,168,76,.1);transform:translateY(-1px)}
-
-/* Confirm state */
-.echo-confirm{display:none;text-align:center;padding:60px 20px;animation:fadeUp .8s var(--ease) forwards}
-.echo-confirm.show{display:block}
-.confirm-orb{width:100px;height:100px;border-radius:50%;margin:0 auto 24px}
-.confirm-title{font-family:var(--font-display);font-size:28px;color:var(--gold);margin-bottom:10px;letter-spacing:.05em}
-.confirm-sub{font-size:17px;font-style:italic;color:var(--muted)}
-
-/* Export/Import row */
-.vault-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;justify-content:center}
-.vault-btn{
-  background:rgba(255,255,255,.03);border:1px solid var(--border);
-  color:var(--muted);padding:9px 20px;border-radius:var(--radius);
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
-  text-transform:uppercase;transition:all .3s;
-}
-.vault-btn:hover{color:var(--text);border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.05)}
-
-/* ── TIMELINE ── */
-#view-timeline{max-width:980px;margin:0 auto}
-.timeline-header{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:44px;flex-wrap:wrap;gap:14px;
-}
-.empty-state{text-align:center;padding:80px 20px}
-.empty-icon{font-size:48px;margin-bottom:16px;opacity:.4}
-.empty-title{font-family:var(--font-display);font-size:24px;color:var(--muted);margin-bottom:8px;letter-spacing:.05em}
-.empty-sub{font-size:14px;font-style:italic;color:rgba(255,255,255,.22)}
-
-/* Memory Bubble Field */
-#bubble-field{position:relative;width:100%;min-height:520px}
-
-/* Interactive orbs */
-.bubble-wrap{
-  position:absolute;cursor:grab;
-  touch-action:none;user-select:none;
-  transition:none;
-  will-change:transform;
-}
-.bubble-wrap:active{cursor:grabbing}
-.echo-bubble{
-  border-radius:50%;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
-  position:relative;z-index:2;
-  transition:filter .4s,opacity .6s;
-  will-change:transform,box-shadow;
-}
-.bubble-shadow{
-  position:absolute;border-radius:50%;
-  top:0;left:0;width:100%;height:100%;
-  opacity:0;filter:blur(12px);z-index:1;
-  transition:opacity .4s;pointer-events:none;
-}
-.bubble-wrap.focused .bubble-shadow{opacity:.9}
-.bubble-wrap.faded{opacity:.08;pointer-events:none;transition:opacity .6s}
-.bubble-wrap.focused{z-index:5}
-
-/* Orb collapse/dissolve */
-.bubble-wrap.collapsing .echo-bubble{
-  animation:orbCollapse .9s var(--ease-in) forwards;
-}
-@keyframes orbCollapse{
-  0%{transform:scale(1);filter:blur(0px);opacity:1}
-  40%{transform:scale(0.85);filter:blur(2px);opacity:.7}
-  80%{transform:scale(0.3);filter:blur(8px);opacity:.2}
-  100%{transform:scale(0);filter:blur(14px);opacity:0}
-}
-
-.echo-bubble .node-int{font-size:19px;font-family:var(--font-editorial);color:rgba(255,255,255,.98);font-weight:400;line-height:1}
-.echo-bubble .node-mood{font-size:9px;font-family:var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.8)}
-.echo-bubble .node-date{font-size:8px;font-family:var(--font-mono);color:rgba(255,255,255,.5)}
-
-/* Sparkle trail */
-.sparkle{
-  position:fixed;pointer-events:none;z-index:9;border-radius:50%;
-  animation:sparkleFade .7s var(--ease-out) forwards;
-}
-@keyframes sparkleFade{
-  0%{opacity:.8;transform:scale(1)}
-  100%{opacity:0;transform:scale(0)}
-}
-
-/* Merge flash */
-.merge-flash{
-  position:fixed;pointer-events:none;z-index:8;border-radius:50%;
-  animation:mergeFlash .6s var(--ease) forwards;
-}
-@keyframes mergeFlash{
-  0%{opacity:.9;transform:scale(.5)}
-  50%{opacity:.6;transform:scale(1.4)}
-  100%{opacity:0;transform:scale(2)}
-}
-
-/* Connection overlay */
-#connection-canvas{z-index:3;pointer-events:none}
-
-/* Gravity ring */
-.gravity-ring{
-  position:absolute;border-radius:50%;border:1px solid rgba(201,168,76,.1);
-  pointer-events:none;z-index:0;
-  animation:gravityPulse 3s ease-in-out infinite;
-}
-
-/* ── WRAPPED ── */
-#view-wrapped{max-width:700px;margin:0 auto}
-.period-toggle{
-  display:flex;background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:3px;width:fit-content;margin-bottom:36px;
-}
-.period-btn{
-  background:none;border:none;color:var(--muted);
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;
-  text-transform:uppercase;padding:8px 20px;border-radius:5px;transition:all .3s;
-}
-.period-btn.active{background:var(--gold);color:var(--void)}
-.wrapped-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:30px;margin-bottom:18px;
-  transition:border-color .3s;
-}
-.wrapped-card:hover{border-color:var(--border2)}
-.wrapped-card-title{
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;
-  text-transform:uppercase;color:var(--gold);margin-bottom:18px;
-}
-
-.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.stat-item{background:rgba(255,255,255,.03);border-radius:6px;padding:16px}
-.stat-value{font-family:var(--font-editorial);font-size:34px;font-weight:400;color:var(--gold)}
-.stat-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-top:4px}
-.balance-bar{height:5px;background:var(--border);border-radius:4px;overflow:hidden;margin:10px 0}
-.balance-fill{height:100%;border-radius:4px;background:linear-gradient(to right,var(--calm),var(--chaos));transition:width 1.2s var(--ease)}
-.balance-labels{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
-.pattern-list{list-style:none;display:flex;flex-direction:column;gap:8px}
-.pattern-item{display:flex;align-items:center;gap:10px;padding:11px;background:rgba(255,255,255,.02);border-radius:5px}
-.pattern-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.pattern-name{font-family:var(--font-body);font-size:15px;color:var(--text);flex:1}
-.pattern-count{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
-.palette-wrap{display:flex;gap:8px;padding-bottom:24px;flex-wrap:wrap}
-.palette-swatch{width:42px;height:42px;border-radius:5px;position:relative;flex-shrink:0}
-.palette-swatch::after{
-  content:attr(data-mood);position:absolute;bottom:-18px;left:50%;
-  transform:translateX(-50%);font-family:var(--font-mono);font-size:8px;
-  color:var(--muted);white-space:nowrap;text-transform:uppercase;
-}
-
-/* ── FUN VIEW ── */
-#view-fun{max-width:700px;margin:0 auto}
-.fun-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:28px}
-.fun-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-  padding:28px;cursor:pointer;transition:border-color .3s,transform .25s,box-shadow .3s;
-  position:relative;overflow:hidden;
-}
-.fun-card::before{
-  content:'';position:absolute;inset:0;
-  background:radial-gradient(circle at 30% 30%,var(--card-glow,rgba(201,168,76,.05)) 0%,transparent 60%);
-  opacity:0;transition:opacity .35s;
-}
-.fun-card:hover::before{opacity:1}
-.fun-card:hover{border-color:rgba(255,255,255,.18);transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,.35)}
-.fun-card-icon{font-size:28px;margin-bottom:12px}
-.fun-card-title{font-family:var(--font-editorial);font-size:18px;color:var(--gold);margin-bottom:6px}
-.fun-card-desc{font-size:13px;font-style:italic;color:var(--muted)}
-
-/* ── NODE DETAIL PANEL ── */
-.node-detail{
-  display:none;position:fixed;inset:0;z-index:200;
-  background:rgba(5,5,8,.93);backdrop-filter:blur(28px);
-  align-items:center;justify-content:center;padding:24px;
-}
-.node-detail.open{display:flex}
-.detail-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:12px;padding:40px;max-width:480px;width:100%;position:relative;
-  animation:scaleIn .35s var(--ease) forwards;
-}
-.detail-close{
-  position:absolute;top:14px;right:18px;background:none;border:none;
-  color:var(--muted);font-size:22px;transition:color .2s;line-height:1;
-}
-.detail-close:hover{color:var(--text)}
-.detail-mood-badge{
-  display:inline-block;padding:4px 14px;border-radius:20px;
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;
-  text-transform:uppercase;margin-bottom:18px;color:#fff;
-}
-.detail-intensity{font-family:var(--font-editorial);font-size:48px;font-weight:400;color:var(--gold);margin-bottom:3px}
-.detail-int-label{font-family:var(--font-mono);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.18em;margin-bottom:18px}
-.detail-thought{font-size:18px;font-style:italic;line-height:1.8;color:var(--text);margin-bottom:18px}
-.detail-void-note{font-family:var(--font-mono);font-size:10px;color:var(--muted);font-style:normal}
-.detail-meta{font-family:var(--font-mono);font-size:9px;color:rgba(255,255,255,.35);margin-top:22px;padding-top:18px;border-top:1px solid var(--border)}
-
-/* ── FUN MODAL ── */
-.fun-modal{
-  display:none;position:fixed;inset:0;z-index:300;
-  background:rgba(5,5,8,.97);backdrop-filter:blur(32px);
-  align-items:center;justify-content:center;padding:24px;overflow-y:auto;
-}
-.fun-modal.open{display:flex}
-.fun-modal-card{max-width:540px;width:100%;position:relative;animation:scaleIn .35s var(--ease) forwards}
-.modal-close-btn{
-  position:absolute;top:-12px;right:-12px;z-index:10;
-  width:32px;height:32px;background:var(--surface);border:1px solid var(--border);
-  border-radius:50%;color:var(--muted);display:flex;align-items:center;justify-content:center;
-  font-size:16px;transition:all .2s;
-}
-.modal-close-btn:hover{color:var(--text);border-color:rgba(255,255,255,.25)}
-
-/* ── RECEIPT (THEMED) ── */
-.receipt{border-radius:3px;position:relative;overflow:hidden}
-.receipt-paper{padding:32px 28px;font-family:var(--font-mono)}
-.receipt::before,.receipt::after{
-  content:'';position:absolute;left:0;right:0;height:14px;z-index:2;
-}
-.receipt-header{text-align:center;margin-bottom:20px;position:relative}
-.receipt-char{font-size:44px;margin-bottom:8px}
-.receipt-store{font-size:17px;font-weight:400;letter-spacing:.12em}
-.receipt-tagline{font-size:9px;margin-top:4px}
-.receipt-divider{border:none;border-top:1px dashed;margin:14px 0;opacity:.4}
-.receipt-line{display:flex;justify-content:space-between;font-size:10px;margin-bottom:8px;line-height:1.5}
-.receipt-line.bold{font-weight:600;font-size:12px}
-.receipt-footer{text-align:center;margin-top:16px;font-size:9px;opacity:.65}
-.receipt-barcode{font-size:28px;letter-spacing:-2px;text-align:center;margin:12px 0;opacity:.5}
-.receipt-actions{display:flex;gap:8px;margin-top:14px}
-.receipt-action-btn{
-  flex:1;padding:9px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
-  color:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;
-  text-transform:uppercase;border-radius:4px;transition:all .25s;cursor:pointer;
-}
-.receipt-action-btn:hover{color:var(--gold);border-color:var(--gold-dim)}
-
-/* Receipt theme: classic */
-.receipt.classic .receipt-paper{background:#faf8f0;color:#1a1a1a}
-.receipt.classic::before{top:-7px;background:repeating-linear-gradient(90deg,#faf8f0 0,#faf8f0 8px,#e8e5d8 8px,#e8e5d8 16px)}
-.receipt.classic::after{bottom:-7px;background:repeating-linear-gradient(90deg,#faf8f0 0,#faf8f0 8px,#e8e5d8 8px,#e8e5d8 16px)}
-/* Receipt theme: dreamy */
-.receipt.dreamy .receipt-paper{background:linear-gradient(135deg,#1a0828,#0e0a2a);color:rgba(230,200,255,.9);border:1px solid rgba(200,150,255,.2)}
-.receipt.dreamy .receipt-store{background:linear-gradient(135deg,#ff8fe7,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-/* Receipt theme: dark */
-.receipt.dark-minimal .receipt-paper{background:#080808;color:#999;border:1px solid #1a1a1a}
-.receipt.dark-minimal .receipt-store{color:#fff}
-/* Receipt theme: romantic */
-.receipt.romantic .receipt-paper{background:linear-gradient(135deg,#1a0810,#0d0018);color:rgba(255,200,220,.9);border:1px solid rgba(255,100,150,.2)}
-.receipt.romantic .receipt-store{background:linear-gradient(135deg,#ff6b9d,#c44dff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-
-/* Receipt character images */
-.receipt-chars{
-  position:absolute;pointer-events:none;z-index:3;
-}
-.receipt-char-img{
-  position:absolute;
-  width:56px;height:56px;
-  border-radius:12px;
-  opacity:.92;
-  object-fit:cover;
-  box-shadow:0 0 14px rgba(201,168,76,.35),0 2px 10px rgba(0,0,0,.4);
-}
-.receipt-char-img.pos-tr{top:10px;right:10px}
-.receipt-char-img.pos-br{bottom:10px;right:10px}
-.receipt-char-img.pos-bl{bottom:10px;left:10px}
-.receipt-char-img.small{width:40px;height:40px;border-radius:50%}
-
-/* Receipt theme selector */
-.receipt-themes{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.theme-btn{
-  background:none;border:1px solid var(--border);color:var(--muted);
-  padding:5px 12px;border-radius:20px;font-family:var(--font-mono);font-size:9px;
-  letter-spacing:.08em;text-transform:uppercase;transition:all .2s;
-}
-.theme-btn:hover,.theme-btn.active{border-color:var(--gold);color:var(--gold)}
-
-/* ── DNA CARD ── */
-.dna-card{
-  background:linear-gradient(135deg,#0a0a18,#12102a);
-  border:1px solid rgba(201,168,76,.3);border-radius:14px;
-  padding:32px;text-align:center;position:relative;overflow:hidden;
-}
-.dna-card::before{
-  content:'';position:absolute;top:-80px;left:-80px;
-  width:240px;height:240px;
-  background:radial-gradient(circle,rgba(201,168,76,.08) 0%,transparent 70%);
-}
-.dna-title{font-family:var(--font-display);font-size:10px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:22px}
-.dna-emoji-row{font-size:34px;margin-bottom:16px}
-.dna-archetype{font-family:var(--font-editorial);font-size:26px;color:var(--text);margin-bottom:8px}
-.dna-archetype-sub{font-size:14px;font-style:italic;color:var(--muted);margin-bottom:26px;line-height:1.6}
-.dna-traits{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:24px}
-.dna-trait{
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);
-  border-radius:20px;padding:5px 14px;font-family:var(--font-mono);
-  font-size:9px;letter-spacing:.1em;color:var(--muted);
-}
-.dna-bars{text-align:left;margin-bottom:18px}
-.dna-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
-.dna-bar-name{font-family:var(--font-mono);font-size:9px;color:var(--muted);width:80px;text-transform:uppercase}
-.dna-bar-track{flex:1;height:3px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
-.dna-bar-fill{height:100%;border-radius:3px}
-.dna-bar-pct{font-family:var(--font-mono);font-size:9px;color:var(--gold);width:30px;text-align:right}
-.dna-footer{font-family:var(--font-mono);font-size:8px;color:rgba(255,255,255,.2);text-transform:uppercase;letter-spacing:.2em}
-
-/* ── CRASH REPORT ── */
-.crash-report{
-  background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;
-  padding:24px;font-family:var(--font-mono);font-size:11px;color:#999;
-}
-.crash-header{color:#ff4444;font-size:14px;margin-bottom:16px}
-.crash-line{margin-bottom:6px}
-.crash-key{color:#66aaff}
-.crash-val{color:#88ff88}
-.crash-stack{color:#555;font-size:10px;margin-top:16px;line-height:2}
-.crash-btn{
-  margin-top:16px;background:none;border:1px solid #333;color:#888;
-  padding:8px 20px;font-family:var(--font-mono);font-size:10px;border-radius:3px;
-  transition:all .2s;cursor:pointer;
-}
-.crash-btn:hover{border-color:#555;color:#bbb}
-
-/* ── SOUNDPRINT (enhanced) ── */
-.soundprint-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px}
-.soundprint-title{font-family:var(--font-editorial);font-size:24px;color:var(--gold);margin-bottom:6px}
-.soundprint-sub{font-size:14px;font-style:italic;color:var(--muted);margin-bottom:26px}
-.track-list{display:flex;flex-direction:column;gap:16px}
-.track-item{
-  display:flex;gap:0;align-items:stretch;
-  background:rgba(255,255,255,.025);border:1px solid var(--border);
-  border-radius:10px;overflow:hidden;
-  transition:border-color .3s,background .3s,transform .2s;
-}
-.track-item:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);transform:translateX(3px)}
-
-/* Big album cover */
-.track-cover{
-  width:90px;height:90px;flex-shrink:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:36px;position:relative;
-}
-.track-cover-glow{
-  position:absolute;inset:0;
-  filter:blur(12px);opacity:.3;
-}
-.track-cover-emoji{position:relative;z-index:1;font-size:38px}
-
-.track-body{flex:1;padding:14px 16px;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
-.track-num{font-family:var(--font-mono);font-size:10px;color:var(--gold);margin-bottom:3px}
-.track-song{font-size:16px;color:var(--text);margin-bottom:2px;font-weight:400}
-.track-artist{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.1em}
-.track-reason{font-size:12px;font-style:italic;color:rgba(255,255,255,.42);line-height:1.5;margin-bottom:8px}
-.track-links{display:flex;gap:6px;flex-wrap:wrap}
-.track-link{
-  display:inline-flex;align-items:center;gap:5px;
-  padding:5px 12px;border-radius:20px;font-family:var(--font-mono);font-size:9px;
-  text-decoration:none;letter-spacing:.06em;transition:opacity .2s,transform .2s;
-  border:1px solid;font-weight:400;
-}
-.track-link:hover{opacity:.8;transform:scale(.97)}
-.track-link.spotify{color:#1db954;border-color:rgba(29,185,84,.35);background:rgba(29,185,84,.08)}
-.track-link.youtube{color:#ff4444;border-color:rgba(255,68,68,.3);background:rgba(255,68,68,.06)}
-.track-link.spotify::before{content:'▶ '}
-.track-link.youtube::before{content:'▶ '}
-
-/* ── YOU vs YOU (inner conflict) ── */
-.conflict-arena{
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  overflow:hidden;position:relative;
-}
-.conflict-canvas-wrap{position:relative;width:100%;height:270px;overflow:hidden}
-#conflict-canvas{width:100%;height:100%;display:block}
-.conflict-instruction{
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.18em;
-  color:rgba(255,255,255,.22);text-align:center;padding:12px;text-transform:uppercase;
-}
-.conflict-labels{display:flex;justify-content:space-between;padding:14px 22px 20px}
-.conflict-label{font-family:var(--font-display);font-size:13px}
-.conflict-label.past{color:var(--reflective)}
-.conflict-label.present{color:var(--chaos)}
-
-/* ── INNER CONFLICT MODE ── */
-body.conflict-mode{--void:#030308}
-
-/* ── MIDNIGHT HINT ── */
-.midnight-hint{
-  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.15em;
-  text-transform:uppercase;color:rgba(255,255,255,.1);z-index:50;
-  pointer-events:none;transition:color .5s;
-}
-body.midnight .midnight-hint{color:rgba(100,130,200,.38)}
-
-/* ── TOAST ── */
-.toast{
-  position:fixed;bottom:40px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--surface2);border:1px solid var(--border2);
-  color:var(--text);font-family:var(--font-mono);font-size:10px;
-  letter-spacing:.1em;padding:10px 24px;border-radius:20px;
-  z-index:500;opacity:0;pointer-events:none;
-  transition:opacity .3s,transform .3s;
-}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-/* ── WHIP PULSE ── */
-.whip-idle-label{
-  position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.22em;
-  text-transform:uppercase;color:rgba(201,168,76,.0);z-index:50;
-  pointer-events:none;transition:color 1s;
-}
-.whip-idle-label.visible{color:rgba(201,168,76,.38)}
-
-/* ── MIDNIGHT MODE ── */
-body.midnight{
-  --void:#03030f;--deep:#060614;--surface:#0c0c22;--surface2:#0f0f28;
-  --text:rgba(180,200,255,.85);--gold:#8899dd;--gold-dim:rgba(136,153,221,.35);
-  --gold-faint:rgba(136,153,221,.07);
-}
-
-/* ── GHOST MEMORIES ── */
-.ghost-memory{
-  position:absolute;border-radius:50%;opacity:0;pointer-events:none;
-  animation:tideFloat linear infinite;
-}
-@keyframes tideFloat{
-  0%{transform:translateY(100%);opacity:0}
-  10%{opacity:.05}90%{opacity:.05}
-  100%{transform:translateY(-20vh);opacity:0}
-}
-
-/* ── SILENCE PARTICLE ── */
-.sil-particle{
-  position:absolute;border-radius:50%;opacity:0;
-  pointer-events:none;animation:silFloat linear forwards;
-}
-@keyframes silFloat{
-  0%{opacity:0;transform:translateY(0) scale(1)}
-  30%{opacity:.5}
-  100%{opacity:0;transform:translateY(-190px) scale(.4)}
-}
-
-/* ── EMOTION RESIDUE ── */
-.residue{
-  position:fixed;border-radius:50%;pointer-events:none;z-index:3;
-  opacity:0;transform:scale(1);
-  animation:residueFade 1.4s var(--ease-out) forwards;
-}
-@keyframes residueFade{
-  0%{opacity:.45;transform:scale(1)}
-  100%{opacity:0;transform:scale(1.9)}
-}
-
-/* ── VOID PULSE ── */
-.void-pulse{
-  position:fixed;border-radius:50%;pointer-events:none;z-index:3;
-  border:2px solid rgba(74,74,90,.65);
-  animation:voidExpand 2s var(--ease-out) forwards;
-}
-@keyframes voidExpand{
-  0%{transform:scale(.2);opacity:.9}
-  100%{transform:scale(4.5);opacity:0}
-}
-
-/* ── PARTICLE DISSOLVE ── */
-.dissolve-particle{
-  position:fixed;pointer-events:none;z-index:9;border-radius:50%;
-  animation:dissolveAway 1.2s var(--ease-out) forwards;
-}
-@keyframes dissolveAway{
-  0%{opacity:.75;transform:translate(0,0) scale(1)}
-  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0)}
-}
-
-/* ── RANDOM REFLECTION ── */
-.reflection-drop{
-  position:fixed;bottom:80px;right:28px;z-index:50;
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;
-  padding:18px 22px;max-width:290px;
-  animation:slideInRight .5s var(--ease) forwards;
-  cursor:pointer;transition:border-color .3s;
-}
-.reflection-drop:hover{border-color:var(--gold-dim)}
-.reflection-drop-label{font-family:var(--font-mono);font-size:8px;letter-spacing:.22em;color:var(--gold);text-transform:uppercase;margin-bottom:8px}
-.reflection-drop-text{font-size:13px;font-style:italic;color:var(--muted);line-height:1.6}
-.reflection-drop-close{position:absolute;top:8px;right:12px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer}
-@keyframes slideInRight{
-  from{opacity:0;transform:translateX(22px)}
-  to{opacity:1;transform:translateX(0)}
-}
-
-/* ─────────────────────────────────────
-   LOGIN / RITUAL SCREEN
-───────────────────────────────────── */
-#login-screen{
-  position:fixed;inset:0;z-index:1000;
-  background:var(--void);
-  display:flex;align-items:center;justify-content:center;
-  flex-direction:column;gap:0;
-  padding:40px 24px;
-  transition:opacity .9s var(--ease),transform .9s var(--ease);
-}
-#login-screen.hidden{
-  opacity:0;pointer-events:none;transform:scale(1.04);
-}
-
-/* Step containers */
-.login-step{
-  display:flex;flex-direction:column;align-items:center;
-  text-align:center;gap:0;
-  opacity:0;
-  position:absolute;
-  transition:opacity .6s var(--ease),transform .6s var(--ease);
-  transform:translateY(16px);
-  pointer-events:none;
-  width:100%;max-width:480px;padding:24px;
-}
-.login-step.active{
-  opacity:1;transform:translateY(0);pointer-events:all;position:relative;
-}
-
-/* Stress orb */
-#stress-orb-wrap{
-  display:flex;flex-direction:column;align-items:center;gap:16px;
-  cursor:pointer;user-select:none;
-  -webkit-tap-highlight-color:transparent;
-}
-#stress-orb{
-  width:130px;height:130px;border-radius:50%;
-  background:radial-gradient(circle at 38% 32%, rgba(201,168,76,.7), rgba(201,168,76,.2) 60%, transparent);
-  box-shadow:0 0 60px rgba(201,168,76,.25),0 0 120px rgba(201,168,76,.1);
-  transition:transform .15s var(--ease),box-shadow .15s;
-  animation:orbBreath 5s ease-in-out infinite;
-  position:relative;
-}
-#stress-orb::after{
-  content:'';position:absolute;inset:-2px;border-radius:50%;
-  border:1px solid rgba(201,168,76,.35);
-  animation:orbRingPulse 5s ease-in-out infinite;
-}
-@keyframes orbBreath{
-  0%,100%{transform:scale(1);box-shadow:0 0 60px rgba(201,168,76,.25),0 0 120px rgba(201,168,76,.1)}
-  50%{transform:scale(1.04);box-shadow:0 0 80px rgba(201,168,76,.35),0 0 160px rgba(201,168,76,.15)}
-}
-@keyframes orbRingPulse{
-  0%,100%{transform:scale(1);opacity:.5}
-  50%{transform:scale(1.08);opacity:.2}
-}
-#stress-orb.pressed{
-  transform:scale(.88)!important;
-  box-shadow:0 0 30px rgba(201,168,76,.4),0 0 60px rgba(201,168,76,.2)!important;
-  transition:transform .08s,box-shadow .08s;
-}
-.stress-hint{
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;
-  color:rgba(255,255,255,.38);text-transform:uppercase;
-  animation:stressHintPulse 2.5s ease-in-out infinite;
-}
-@keyframes stressHintPulse{
-  0%,100%{opacity:.38}50%{opacity:.65}
-}
-.stress-title{
-  font-family:var(--font-display);font-size:clamp(22px,5vw,36px);
-  color:var(--gold);margin-bottom:10px;letter-spacing:.05em;
-  margin-top:28px;
-}
-.stress-sub{font-size:16px;font-style:italic;color:var(--muted);line-height:1.7}
-
-/* Breathing animation step */
-#breath-anim-canvas{
-  width:200px;height:200px;
-  margin:0 auto;
-}
-.breath-instruction{
-  font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;
-  text-transform:uppercase;color:var(--gold);
-  margin-top:24px;animation:breathTextFade 4s ease-in-out infinite;
-}
-@keyframes breathTextFade{
-  0%,100%{opacity:.5}50%{opacity:1}
-}
-
-/* Name input step */
-.name-step-title{
-  font-family:var(--font-display);font-size:clamp(20px,4vw,32px);
-  color:var(--gold);margin-bottom:8px;letter-spacing:.05em;
-}
-.name-step-sub{font-size:16px;font-style:italic;color:var(--muted);margin-bottom:32px;line-height:1.7}
-.name-input{
-  background:transparent;border:none;border-bottom:1px solid var(--gold-dim);
-  color:var(--text);font-family:var(--font-editorial);font-size:28px;
-  text-align:center;outline:none;padding:12px 24px;width:100%;max-width:320px;
-  transition:border-color .3s;
-  font-style:italic;
-}
-.name-input::placeholder{color:rgba(255,255,255,.2)}
-.name-input:focus{border-color:var(--gold)}
-.name-enter-btn{
-  margin-top:28px;background:var(--gold);color:var(--void);border:none;
-  padding:14px 40px;font-family:var(--font-mono);font-size:11px;
-  letter-spacing:.18em;text-transform:uppercase;border-radius:3px;
-  transition:background .3s,transform .2s;opacity:0;pointer-events:none;
-  transition:background .3s,transform .2s,opacity .4s;
-}
-.name-enter-btn.visible{opacity:1;pointer-events:all}
-.name-enter-btn:hover{background:#d4b45a;transform:translateY(-2px)}
-
-/* Returning user */
-.return-greeting{
-  font-family:var(--font-editorial);font-size:22px;font-style:italic;
-  color:var(--muted);margin-bottom:6px;
-}
-.return-name{
-  font-family:var(--font-display);font-size:clamp(28px,6vw,48px);
-  color:var(--gold);letter-spacing:.06em;margin-bottom:16px;
-}
-.return-sub{font-size:16px;font-style:italic;color:rgba(255,255,255,.45);line-height:1.7}
-.return-enter-btn{margin-top:32px}
-
-/* ─────────────────────────────────────
-   ONBOARDING OVERLAY
-───────────────────────────────────── */
-#onboarding{
-  position:fixed;inset:0;z-index:900;
-  background:rgba(5,5,8,.95);backdrop-filter:blur(20px);
-  display:none;align-items:center;justify-content:center;
-  padding:24px;
-}
-#onboarding.open{display:flex}
-
-.ob-card{
-  max-width:520px;width:100%;background:var(--surface);
-  border:1px solid var(--border2);border-radius:16px;
-  padding:44px 40px;position:relative;
-  animation:scaleIn .4s var(--ease) forwards;
-}
-.ob-step-dots{
-  display:flex;gap:7px;justify-content:center;margin-bottom:32px;
-}
-.ob-dot{
-  width:7px;height:7px;border-radius:50%;
-  background:var(--border);transition:background .3s,transform .3s;
-}
-.ob-dot.active{background:var(--gold);transform:scale(1.3)}
-.ob-dot.done{background:rgba(201,168,76,.4)}
-
-.ob-icon{font-size:52px;margin-bottom:20px;text-align:center;display:block}
-.ob-title{
-  font-family:var(--font-display);font-size:clamp(20px,4vw,28px);
-  color:var(--gold);margin-bottom:12px;text-align:center;letter-spacing:.05em;
-}
-.ob-body{
-  font-size:16px;line-height:1.85;color:var(--muted);
-  text-align:center;font-style:italic;margin-bottom:36px;
-}
-.ob-body strong{color:var(--text);font-style:normal}
-.ob-actions{display:flex;gap:10px;justify-content:center;align-items:center}
-.ob-next{
-  background:var(--gold);color:var(--void);border:none;
-  padding:13px 32px;font-family:var(--font-mono);font-size:11px;
-  letter-spacing:.15em;text-transform:uppercase;border-radius:3px;
-  transition:background .3s,transform .2s;
-}
-.ob-next:hover{background:#d4b45a;transform:translateY(-1px)}
-.ob-back{
-  background:none;border:1px solid var(--border);color:var(--muted);
-  padding:13px 22px;font-family:var(--font-mono);font-size:11px;
-  letter-spacing:.1em;text-transform:uppercase;border-radius:3px;
-  transition:all .25s;
-}
-.ob-back:hover{color:var(--text);border-color:var(--border2)}
-.ob-skip{
-  background:none;border:none;color:rgba(255,255,255,.25);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.15em;
-  text-transform:uppercase;padding:8px 14px;
-  transition:color .3s;
-}
-.ob-skip:hover{color:var(--muted)}
-
-/* Highlight pulse for onboarding */
-.ob-highlight{
-  position:relative;z-index:901;
-  box-shadow:0 0 0 4px var(--gold),0 0 40px rgba(201,168,76,.4)!important;
-  border-radius:var(--radius);
-  animation:obHighlightPulse 1.5s ease-in-out infinite;
-}
-@keyframes obHighlightPulse{
-  0%,100%{box-shadow:0 0 0 3px var(--gold),0 0 32px rgba(201,168,76,.3)}
-  50%{box-shadow:0 0 0 5px var(--gold),0 0 56px rgba(201,168,76,.5)}
-}
-
-/* ─────────────────────────────────────
-   DIGITAL STRESS BALL (Anxiety Game)
-───────────────────────────────────── */
-#stress-ball-section{
-  max-width:480px;margin:0 auto;text-align:center;
-  padding-top:40px;
-}
-.stress-ball-title{
-  font-family:var(--font-display);font-size:clamp(22px,4vw,34px);
-  color:var(--gold);margin-bottom:8px;letter-spacing:.05em;
-}
-.stress-ball-sub{font-size:15px;font-style:italic;color:var(--muted);margin-bottom:40px;line-height:1.7}
-
-#squeeze-orb{
-  width:180px;height:180px;border-radius:50%;
-  background:radial-gradient(circle at 38% 32%,rgba(91,143,168,.9),rgba(91,143,168,.3) 60%,transparent);
-  box-shadow:0 0 80px rgba(91,143,168,.35),0 0 160px rgba(91,143,168,.15);
-  margin:0 auto;cursor:pointer;
-  transition:transform .12s var(--ease),border-radius .12s var(--ease),box-shadow .12s;
-  user-select:none;-webkit-tap-highlight-color:transparent;
-  position:relative;
-  animation:squeezeBreath 6s ease-in-out infinite;
-}
-#squeeze-orb::after{
-  content:'';position:absolute;inset:0;border-radius:50%;
-  background:radial-gradient(circle at 62% 68%,rgba(255,255,255,.12),transparent 60%);
-  pointer-events:none;
-}
-@keyframes squeezeBreath{
-  0%,100%{transform:scale(1)}
-  50%{transform:scale(1.04)}
-}
-#squeeze-orb.squeezed{
-  transform:scaleX(1.22) scaleY(.82)!important;
-  border-radius:50% 50% 44% 44%;
-  box-shadow:0 0 40px rgba(91,143,168,.5),0 0 80px rgba(91,143,168,.25)!important;
-  transition:transform .08s,border-radius .08s,box-shadow .08s;
-}
-.squeeze-count{
-  font-family:var(--font-mono);font-size:11px;letter-spacing:.22em;
-  text-transform:uppercase;color:rgba(255,255,255,.32);
-  margin-top:24px;transition:color .4s;
-}
-.squeeze-count.glowing{color:var(--gold)}
-
-/* Breathing ring */
-.squeeze-breath-ring{
-  width:240px;height:240px;border-radius:50%;
-  border:1px solid rgba(91,143,168,.0);
-  position:absolute;left:50%;top:50%;
-  transform:translate(-50%,-50%) scale(1);
-  pointer-events:none;
-  transition:border-color .8s,transform 4s ease-in-out;
-}
-.squeeze-breath-ring.breathing{
-  border-color:rgba(91,143,168,.25);
-  animation:breathRingExpand 4s ease-in-out infinite;
-}
-@keyframes breathRingExpand{
-  0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.4}
-  50%{transform:translate(-50%,-50%) scale(1.22);opacity:.08}
-}
-.squeeze-wrap{position:relative;width:240px;height:240px;margin:0 auto 8px}
-
-.stress-ball-back{
-  margin-top:32px;background:none;border:1px solid var(--border);
-  color:var(--muted);padding:10px 24px;border-radius:var(--radius);
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
-  text-transform:uppercase;transition:all .25s;
-}
-.stress-ball-back:hover{color:var(--text);border-color:var(--border2)}
-
-/* ── ANIMATIONS ── */
-@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-@keyframes scaleIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
-@keyframes orbPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
-@keyframes gravityPulse{0%,100%{opacity:.06;transform:scale(1)}50%{opacity:.12;transform:scale(1.04)}}
-@keyframes bubbleFloat0{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-@keyframes bubbleFloat1{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@keyframes bubbleFloat2{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-
-/* ── RESPONSIVE ── */
-@media(max-width:768px){
-  nav{padding:12px 16px}
-  .nav-links{gap:2px}
-  .nav-links button{padding:5px 9px;font-size:9px;letter-spacing:.06em}
-  .view{padding:80px 16px 60px}
-  .mood-grid{grid-template-columns:repeat(2,1fr)}
-  .stat-row{grid-template-columns:1fr}
-  .fun-grid{grid-template-columns:1fr}
-  .detail-card{padding:28px 20px}
-  .wrapped-card{padding:24px 18px}
-  #bubble-field{min-height:400px}
-  .reflection-drop{right:14px;max-width:250px}
-  .ob-card{padding:32px 24px}
-  .hero-title{font-size:clamp(28px,10vw,56px)}
-  .track-cover{width:70px;height:70px}
-  .track-cover-emoji{font-size:28px}
-}
-@media(max-width:400px){
-  .nav-links button{padding:4px 6px;font-size:8px}
-  .mood-grid{gap:7px}
-  .hero-actions{flex-direction:column;width:100%;max-width:280px}
-  .btn-primary,.btn-ghost{width:100%;text-align:center}
-}
-</style>
-</head>
-<body>
-
-<!-- CANVAS LAYERS -->
-<canvas id="cosmos-canvas"     aria-hidden="true"></canvas>
-<canvas id="ripple-canvas"     aria-hidden="true"></canvas>
-<canvas id="connection-canvas" aria-hidden="true"></canvas>
-<canvas id="whip-canvas"       aria-hidden="true"></canvas>
-
-<!-- ATMOSPHERE LAYERS -->
-<div id="breath-layer"  aria-hidden="true"></div>
-<div id="ghost-layer"   aria-hidden="true"></div>
-<div id="silence-layer" aria-hidden="true"></div>
-
-<!-- ═══════════════════════════════════
-     LOGIN SCREEN
-════════════════════════════════════ -->
-<div id="login-screen" role="dialog" aria-modal="true" aria-label="Welcome to EchoVault">
-
-  <!-- Step 1: Stress Orb -->
-  <div class="login-step active" id="ls-orb">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:32px;opacity:.7">EchoVault</div>
-    <div id="stress-orb-wrap" role="button" tabindex="0" aria-label="Press the orb to begin">
-      <div id="stress-orb"></div>
-      <div class="stress-hint">press to begin</div>
-    </div>
-    <div class="stress-title" style="margin-top:36px">Feel something?</div>
-    <div class="stress-sub">This is your emotional universe.<br>Press the orb to step inside.</div>
-  </div>
-
-  <!-- Step 2: Breathing Animation -->
-  <div class="login-step" id="ls-breath">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:28px;opacity:.7">EchoVault</div>
-    <canvas id="breath-anim-canvas" width="200" height="200" aria-hidden="true"></canvas>
-    <div class="breath-instruction">breathe with it…</div>
-    <div style="font-size:15px;font-style:italic;color:var(--muted);margin-top:14px;max-width:320px;line-height:1.7">
-      Your feelings are not distractions.<br>They are data.
-    </div>
-  </div>
-
-  <!-- Step 3: Name Input -->
-  <div class="login-step" id="ls-name">
-    <div class="name-step-title">What do they call you?</div>
-    <div class="name-step-sub">Your universe will remember.</div>
-    <input class="name-input" id="name-input" type="text" placeholder="your name…" maxlength="32" autocomplete="off">
-    <button class="name-enter-btn" id="name-enter-btn">Enter My Universe</button>
-  </div>
-
-  <!-- Step 4: Returning user (shown instead of steps 1-3) -->
-  <div class="login-step" id="ls-return">
-    <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:28px;opacity:.7">EchoVault</div>
-    <div class="return-greeting">you're back…</div>
-    <div class="return-name" id="return-name">—</div>
-    <div class="return-sub">your universe held everything<br>while you were away.</div>
-    <button class="btn-primary return-enter-btn" id="return-enter-btn" style="margin-top:32px">Continue</button>
-  </div>
-
-</div>
-
-<!-- ═══════════════════════════════════
-     ONBOARDING
-════════════════════════════════════ -->
-<div id="onboarding" role="dialog" aria-modal="true" aria-label="EchoVault Tutorial">
-  <div class="ob-card">
-    <div class="ob-step-dots">
-      <div class="ob-dot active" id="ob-d0"></div>
-      <div class="ob-dot"        id="ob-d1"></div>
-      <div class="ob-dot"        id="ob-d2"></div>
-      <div class="ob-dot"        id="ob-d3"></div>
-    </div>
-    <span class="ob-icon" id="ob-icon">🌌</span>
-    <div class="ob-title" id="ob-title">This is your universe.</div>
-    <div class="ob-body"  id="ob-body">Everything you feel becomes a memory orb — floating in your own private cosmos. <strong>Nothing is too small. Nothing is too much.</strong></div>
-    <div class="ob-actions">
-      <button class="ob-back" id="ob-back" style="display:none">Back</button>
-      <button class="ob-skip" id="ob-skip">Skip all</button>
-      <button class="ob-next" id="ob-next">Next →</button>
-    </div>
-  </div>
-</div>
-
-<!-- NAV -->
-<nav>
-  <a class="nav-logo" href="#" id="nav-logo-btn" aria-label="EchoVault Home">EchoVault</a>
-  <ul class="nav-links" role="list">
-    <li><button id="nav-home"     class="active" aria-label="Universe view">Universe</button></li>
-    <li><button id="nav-entry"    aria-label="Create echo">+ Echo</button></li>
-    <li><button id="nav-timeline" aria-label="Timeline view">Timeline</button></li>
-    <li><button id="nav-wrapped"  aria-label="Wrapped view">Wrapped</button></li>
-    <li><button id="nav-fun"      aria-label="Rituals view">Rituals</button></li>
-  </ul>
-</nav>
-
-<!-- APP SHELL -->
-<div class="app-shell">
-
-  <!-- ── HOME ── -->
-  <div id="view-home" class="view active" role="main">
-    <div class="hero-eyebrow">Your Emotional Universe</div>
-    <h1 class="hero-title">Every feeling<br>is an <span>echo</span></h1>
-    <p class="hero-sub">A living archive of who you are becoming — not a diary, but a cosmos of memory and feeling.</p>
-    <div class="hero-actions">
-      <button class="btn-primary" id="home-create-btn">Create Echo</button>
-      <button class="btn-ghost"   id="home-enter-btn">Enter Universe</button>
-    </div>
-    <div class="weather-widget">
-      <div class="weather-label">Today's Emotional Weather</div>
-      <div class="weather-display" id="weather-emoji">🌫️</div>
-      <div class="weather-text"   id="weather-text">Loading your atmosphere…</div>
-    </div>
-    <div class="identity-orb-container">
-      <canvas id="identity-orb" width="80" height="80" aria-label="Identity drift orb"></canvas>
-      <div class="orb-label">Identity Drift</div>
-    </div>
-    <div id="identity-core-wrap">
-      <canvas id="identity-core-canvas" width="160" height="160" aria-label="Emotional identity core"></canvas>
-      <div class="identity-core-label">Emotional Identity Core</div>
-    </div>
-  </div>
-
-  <!-- ── ENTRY ── -->
-  <div id="view-entry" class="view">
-    <div class="entry-container">
-      <div id="entry-form-wrap">
-        <h2 class="view-title">New Echo</h2>
-        <p class="view-subtitle">What moved through you today?</p>
-
-        <!-- MOOD -->
-        <div class="form-section">
-          <label class="form-label" id="mood-label">Emotional Resonance</label>
-          <div class="mood-grid" role="group" aria-labelledby="mood-label">
-            <button class="mood-btn" data-mood="calm"       aria-label="Calm mood"><span class="mood-icon" aria-hidden="true">🌊</span>calm</button>
-            <button class="mood-btn" data-mood="chaos"      aria-label="Chaos mood"><span class="mood-icon" aria-hidden="true">⚡</span>chaos</button>
-            <button class="mood-btn" data-mood="reflective" aria-label="Reflective mood"><span class="mood-icon" aria-hidden="true">🌙</span>reflective</button>
-            <button class="mood-btn" data-mood="anxious"    aria-label="Anxious mood"><span class="mood-icon" aria-hidden="true">🌀</span>anxious</button>
-            <button class="mood-btn" data-mood="joyful"     aria-label="Joyful mood"><span class="mood-icon" aria-hidden="true">🌸</span>joyful</button>
-            <button class="mood-btn" data-mood="empty"      aria-label="Empty mood"><span class="mood-icon" aria-hidden="true">🪨</span>empty</button>
-          </div>
-        </div>
-
-        <!-- INTENSITY -->
-        <div class="form-section">
-          <label class="form-label" for="intensity-slider">Intensity</label>
-          <div class="intensity-row">
-            <input type="range" class="intensity-slider" id="intensity-slider" min="1" max="10" value="5" aria-valuenow="5" aria-valuemin="1" aria-valuemax="10">
-            <div class="intensity-value" id="intensity-val" aria-live="polite">5</div>
-          </div>
-        </div>
-
-        <!-- SILENCE LEVEL -->
-        <div class="form-section">
-          <label class="form-label" for="silence-slider">Silence Level — how hard was it to express this?</label>
-          <div class="silence-row">
-            <input type="range" class="intensity-slider" id="silence-slider" min="1" max="10" value="3" style="accent-color:var(--reflective)" aria-valuenow="3" aria-valuemin="1" aria-valuemax="10">
-            <div class="intensity-value" id="silence-val" style="color:var(--reflective);font-size:20px" aria-live="polite">3</div>
-          </div>
-          <div class="silence-labels"><span>easy to share</span><span>impossible to say</span></div>
-        </div>
-
-        <!-- THOUGHT -->
-        <div class="form-section">
-          <label class="form-label" for="thought-input">Thought Fragment <span style="opacity:.4;font-size:9px">(optional)</span></label>
-          <textarea class="thought-area" id="thought-input" placeholder="Let it be incomplete. Let it be honest." rows="4"></textarea>
-          <div class="void-toggle" id="void-toggle" role="checkbox" aria-checked="false" tabindex="0">
-            <div class="toggle-box" id="void-box" aria-hidden="true">✓</div>
-            <span class="toggle-label">Void Entry — no words, only feeling</span>
-          </div>
-        </div>
-
-        <button class="submit-entry-btn" id="submit-btn">Crystallize this Echo</button>
-
-        <!-- VAULT ACTIONS -->
-        <div class="vault-actions" style="margin-top:32px">
-          <button class="vault-btn" id="export-btn" aria-label="Export vault">⬇ Export Vault</button>
-          <button class="vault-btn" id="import-btn" aria-label="Import vault">⬆ Import Vault</button>
-          <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Choose vault file">
-        </div>
-      </div>
-
-      <!-- CONFIRM STATE -->
-      <div class="echo-confirm" id="echo-confirm" aria-live="polite">
-        <canvas class="confirm-orb" id="confirm-orb" width="100" height="100"></canvas>
-        <div class="confirm-title">Echo recorded.</div>
-        <div class="confirm-sub" id="confirm-sub">Your feeling has been woven into the universe.</div>
-        <br><br>
-        <button class="btn-ghost"    id="new-echo-btn"  style="margin-right:10px">New Echo</button>
-        <button class="btn-primary"  id="view-uni-btn">View Universe</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── TIMELINE ── -->
-  <div id="view-timeline" class="view">
-    <div class="timeline-header">
-      <div>
-        <h2 class="view-title">Your Universe</h2>
-        <p class="view-subtitle" id="timeline-subtitle">All echoes, all emotions</p>
-      </div>
-      <div id="timeline-tide-label" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:right"></div>
-    </div>
-
-    <div id="timeline-empty" class="empty-state" style="display:none">
-      <div class="empty-icon" aria-hidden="true">🌌</div>
-      <div class="empty-title">The universe awaits its first echo</div>
-      <div class="empty-sub">Create your first emotional entry to begin.</div>
-      <br>
-      <button class="btn-primary" id="timeline-create-btn" style="margin-top:16px">Create First Echo</button>
-    </div>
-
-    <!-- BUBBLE FIELD -->
-    <div id="bubble-field" aria-label="Memory bubble field"></div>
-  </div>
-
-  <!-- ── WRAPPED ── -->
-  <div id="view-wrapped" class="view">
-    <h2 class="view-title">Emotion Wrapped</h2>
-    <p class="view-subtitle">Spotify Wrapped — for your inner life</p>
-    <div class="period-toggle" role="group" aria-label="Time period">
-      <button class="period-btn active" id="period-week">This Week</button>
-      <button class="period-btn"        id="period-month">This Month</button>
-      <button class="period-btn"        id="period-all">All Time</button>
-    </div>
-    <div id="wrapped-empty" class="empty-state" style="display:none">
-      <div class="empty-icon" aria-hidden="true">📊</div>
-      <div class="empty-title">No echoes in this period</div>
-      <div class="empty-sub">Create some echoes first.</div>
-    </div>
-    <div id="wrapped-content"></div>
-  </div>
-
-  <!-- ── FUN RITUALS ── -->
-  <div id="view-fun" class="view">
-    <h2 class="view-title">Rituals &amp; Artifacts</h2>
-    <p class="view-subtitle">Playful documents of your emotional existence.</p>
-    <div class="fun-grid">
-      <div class="fun-card" data-fun="receipt" style="--card-glow:rgba(201,168,76,.06)" role="button" tabindex="0" aria-label="Open Mood Receipt">
-        <div class="fun-card-icon" aria-hidden="true">🧾</div>
-        <div class="fun-card-title">Mood Receipt</div>
-        <div class="fun-card-desc">Your feelings, itemized in style.</div>
-      </div>
-      <div class="fun-card" data-fun="dna" style="--card-glow:rgba(120,100,200,.06)" role="button" tabindex="0" aria-label="Open Emotion DNA">
-        <div class="fun-card-icon" aria-hidden="true">🧬</div>
-        <div class="fun-card-title">Emotion DNA</div>
-        <div class="fun-card-desc">Your emotional archetype, crystallized.</div>
-      </div>
-      <div class="fun-card" data-fun="crash" style="--card-glow:rgba(200,60,60,.06)" role="button" tabindex="0" aria-label="Open Crash Report">
-        <div class="fun-card-icon" aria-hidden="true">💻</div>
-        <div class="fun-card-title">Crash Report</div>
-        <div class="fun-card-desc">System error: too many feelings.</div>
-      </div>
-      <div class="fun-card" data-fun="sound" style="--card-glow:rgba(100,180,100,.06)" role="button" tabindex="0" aria-label="Open Echo Soundprint">
-        <div class="fun-card-icon" aria-hidden="true">🎧</div>
-        <div class="fun-card-title">Echo Soundprint</div>
-        <div class="fun-card-desc">Songs resonating with your frequency.</div>
-      </div>
-      <div class="fun-card" data-fun="stressball" style="--card-glow:rgba(91,143,168,.08)" role="button" tabindex="0" aria-label="Open Digital Stress Ball">
-        <div class="fun-card-icon" aria-hidden="true">🫧</div>
-        <div class="fun-card-title">Digital Stress Ball</div>
-        <div class="fun-card-desc">Squeeze it. Breathe. Repeat.</div>
-      </div>
-      <div class="fun-card" data-fun="vsvs" style="--card-glow:rgba(100,160,200,.06)" role="button" tabindex="0" aria-label="Open Inner Conflict">
-        <div class="fun-card-icon" aria-hidden="true">⚔️</div>
-        <div class="fun-card-title">Inner Conflict</div>
-        <div class="fun-card-desc">Past self meets present self — cinematic.</div>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /app-shell -->
-
-<!-- NODE DETAIL PANEL -->
-<div class="node-detail" id="node-detail" role="dialog" aria-modal="true" aria-label="Echo detail">
-  <div class="detail-card" id="detail-card">
-    <button class="detail-close" id="detail-close-btn" aria-label="Close detail">×</button>
-    <div class="detail-mood-badge" id="detail-badge"></div>
-    <div class="detail-intensity"  id="detail-int"></div>
-    <div class="detail-int-label">intensity</div>
-    <div class="detail-thought"   id="detail-thought"></div>
-    <div class="detail-meta"      id="detail-meta"></div>
-  </div>
-</div>
-
-<!-- FUN MODAL -->
-<div class="fun-modal" id="fun-modal" role="dialog" aria-modal="true" aria-label="Ritual artifact">
-  <div class="fun-modal-card" id="fun-modal-inner">
-    <button class="modal-close-btn" id="fun-modal-close" aria-label="Close modal">×</button>
-    <div id="fun-modal-content"></div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast" aria-live="assertive" aria-atomic="true"></div>
-
-<!-- MIDNIGHT HINT -->
-<div class="midnight-hint" id="midnight-hint" aria-hidden="true"></div>
-
-<!-- WHIP IDLE LABEL -->
-<div class="whip-idle-label" id="whip-idle-label" aria-hidden="true">still here — feel something</div>
-
-<script>
 (function EchoVault() {
 'use strict';
 
@@ -1407,6 +61,7 @@ const SOUNDPRINTS = {
     {song:'The Night Will Always Win',artist:'Manchester Orchestra',reason:'For when the hollow feeling has its own gravity.',spotify:'https://open.spotify.com/search/Manchester%20Orchestra',youtube:'https://www.youtube.com/results?search_query=The+Night+Will+Always+Win+Manchester+Orchestra'}
   ]
 };
+const ALLOWED_MOODS = Object.keys(MOOD_COLORS);
 
 /* ── STATE ── */
 let state = {
@@ -1424,12 +79,48 @@ let state = {
 
 /* ── STORAGE ── */
 const Storage = (() => {
+  function sanitizeEcho(raw, idx = 0) {
+    if (!raw || typeof raw !== 'object') return null;
+    const mood = ALLOWED_MOODS.includes(raw.mood) ? raw.mood : null;
+    if (!mood) return null;
+
+    const intensityNum = Number(raw.intensity);
+    const silenceNum = Number(raw.silence ?? 1);
+    const intensity = Number.isFinite(intensityNum) ? Math.max(1, Math.min(10, Math.round(intensityNum))) : null;
+    const silence = Number.isFinite(silenceNum) ? Math.max(1, Math.min(10, Math.round(silenceNum))) : 1;
+    if (!intensity) return null;
+
+    const thought = typeof raw.thought === 'string' ? raw.thought.slice(0, 2000) : '';
+    const dateIso = new Date(raw.date || Date.now()).toISOString();
+    const id = typeof raw.id === 'string' && raw.id.trim()
+      ? raw.id
+      : `${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
+
+    return {
+      id,
+      mood,
+      intensity,
+      silence,
+      thought,
+      void: Boolean(raw.void),
+      date: dateIso
+    };
+  }
+
+  function sanitizeEchoList(input) {
+    if (!Array.isArray(input)) return [];
+    return input
+      .map((entry, idx) => sanitizeEcho(entry, idx))
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      return sanitizeEchoList(parsed);
     } catch(e) { return []; }
   }
   function save(echoes) {
@@ -1441,7 +132,8 @@ const Storage = (() => {
   }
   function exportVault(echoes) {
     try {
-      const blob = new Blob([JSON.stringify({version:2,echoes}, null, 2)], {type:'application/json'});
+      const sanitized = sanitizeEchoList(echoes);
+      const blob = new Blob([JSON.stringify({version:2,echoes:sanitized}, null, 2)], {type:'application/json'});
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
       a.href = url; a.download = 'echovault-backup.json';
@@ -1454,8 +146,10 @@ const Storage = (() => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        const arr  = data.echoes || data;
-        if (!Array.isArray(arr)) throw new Error('Invalid format');
+        const arr = sanitizeEchoList(data.echoes || data);
+        if (!arr.length && Array.isArray(data.echoes || data) && (data.echoes || data).length) {
+          throw new Error('Invalid format');
+        }
         onSuccess(arr);
         Toast.show(`Imported ${arr.length} echoes ✓`);
       } catch(err) { Toast.show('Import failed — invalid file.'); }
@@ -1496,7 +190,20 @@ const Nav = (() => {
     if (name === 'timeline') { Timeline.render(); setTimeout(ConnectionCanvas.render, 60); }
     if (name === 'wrapped')  Wrapped.render();
     if (name === 'home')     IdentityCore.update();
+    // Smooth scroll to top of the view content, then to the active section
     window.scrollTo({top:0, behavior:'smooth'});
+    // After the scroll, ensure the view's first meaningful content is in focus
+    setTimeout(() => {
+      const activeView = viewEls[name];
+      if (!activeView) return;
+      const firstFocusable = activeView.querySelector('.view-title, h2, .hero-title, .fun-grid, #bubble-field, #wrapped-content, .wrapped-card, .entry-container');
+      if (firstFocusable) {
+        const rect = firstFocusable.getBoundingClientRect();
+        if (rect.top < 0 || rect.top > window.innerHeight * 0.3) {
+          firstFocusable.scrollIntoView({behavior:'smooth', block:'start'});
+        }
+      }
+    }, 80);
   }
   return {show};
 })();
@@ -2511,11 +1218,16 @@ const Timeline = (() => {
       `;
       if (i > 8) bubble.style.filter = `blur(${Math.min(2,(i-8)*.22)}px)`;
 
-      bubble.innerHTML = `
-        <div class="node-int">${echo.intensity}</div>
-        <div class="node-mood">${echo.mood}</div>
-        <div class="node-date">${formatDateShort(echo.date)}</div>
-      `;
+      const nodeInt = document.createElement('div');
+      nodeInt.className = 'node-int';
+      nodeInt.textContent = String(echo.intensity);
+      const nodeMood = document.createElement('div');
+      nodeMood.className = 'node-mood';
+      nodeMood.textContent = echo.mood;
+      const nodeDate = document.createElement('div');
+      nodeDate.className = 'node-date';
+      nodeDate.textContent = formatDateShort(echo.date);
+      bubble.append(nodeInt, nodeMood, nodeDate);
 
       wrap.appendChild(shadow);
       wrap.appendChild(bubble);
@@ -2739,60 +1451,229 @@ const MidnightMode = (() => {
   return {check};
 })();
 
-/* ── DIGITAL STRESS BALL ── */
-const StressBall = (() => {
-  let squeezeCount = 0;
-  let breathingActive = false;
-  let breathTimer = null;
-
-  function buildHTML() {
-    return `<div id="stress-ball-section">
-      <div class="stress-ball-title">Digital Stress Ball</div>
-      <div class="stress-ball-sub">Hold and squeeze. Let it reshape. Breathe with it.</div>
-      <div class="squeeze-wrap">
-        <div class="squeeze-breath-ring" id="sb-breath-ring"></div>
-        <div id="squeeze-orb" role="button" tabindex="0" aria-label="Squeeze the stress ball"></div>
-      </div>
-      <div class="squeeze-count" id="squeeze-count">press to begin</div>
-    </div>`;
-  }
+/* ── SHATTER SOFTLY ── */
+const ShatterSoftly = (() => {
+  let canvas, ctx, cracks = [], shattered = false, tapCount = 0;
+  const W = 240, H = 240;
 
   function init() {
-    const orb  = document.getElementById('squeeze-orb');
-    const cnt  = document.getElementById('squeeze-count');
-    const ring = document.getElementById('sb-breath-ring');
-    if (!orb) return;
+    canvas = document.getElementById('shatter-canvas');
+    if (!canvas) return;
+    ctx = canvas.getContext('2d');
+    cracks = []; shattered = false; tapCount = 0;
+    draw();
 
-    function onPress() {
-      orb.classList.add('squeezed');
-    }
-    function onRelease() {
-      orb.classList.remove('squeezed');
-      squeezeCount++;
-      cnt.textContent = squeezeCount === 1 ? 'keep going…' :
-                        squeezeCount < 5   ? `${squeezeCount} squeezes` :
-                        squeezeCount < 10  ? `${squeezeCount} — you're in it` :
-                        `${squeezeCount} — let it slow now`;
-      cnt.classList.add('glowing');
-      setTimeout(() => cnt.classList.remove('glowing'), 600);
+    canvas.addEventListener('pointerdown', onTap);
+    canvas.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
 
-      // After 5 presses, start breathing guide
-      if (squeezeCount >= 5 && !breathingActive) {
-        breathingActive = true;
-        ring.classList.add('breathing');
-        cnt.textContent = 'breathe with the ring…';
-      }
-    }
-
-    orb.addEventListener('pointerdown', onPress, {passive:true});
-    document.addEventListener('pointerup', onRelease, {once:false});
-    orb.addEventListener('pointerleave', onRelease, {passive:true});
-    orb.addEventListener('keydown', e => {
-      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onPress(); setTimeout(onRelease, 300); }
+    document.getElementById('shatter-reset-btn')?.addEventListener('click', () => {
+      cracks = []; shattered = false; tapCount = 0;
+      document.getElementById('shatter-aftermath').classList.remove('show');
+      document.getElementById('shatter-hint').style.display = '';
+      draw();
     });
   }
 
-  return {buildHTML, init};
+  function draw() {
+    if (!ctx) return;
+    ctx.clearRect(0, 0, W, H);
+
+    // Object surface — ceramic plate look
+    const progress = Math.min(tapCount / 12, 1);
+    const surfaceAlpha = 0.92 - progress * 0.3;
+
+    // Background glow
+    const glow = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.52);
+    glow.addColorStop(0, `rgba(200,190,255,${0.06 - progress*0.04})`);
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Main plate
+    const plateGrd = ctx.createRadialGradient(W/2 - 20, H/2 - 20, 0, W/2, H/2, W * 0.44);
+    plateGrd.addColorStop(0, `rgba(230,225,245,${surfaceAlpha})`);
+    plateGrd.addColorStop(0.55, `rgba(200,195,225,${surfaceAlpha * 0.9})`);
+    plateGrd.addColorStop(1, `rgba(160,150,200,${surfaceAlpha * 0.7})`);
+    ctx.beginPath();
+    ctx.ellipse(W/2, H/2, 90, 85, -0.1, 0, Math.PI * 2);
+    ctx.fillStyle = plateGrd;
+    ctx.fill();
+
+    // Plate rim
+    ctx.beginPath();
+    ctx.ellipse(W/2, H/2, 90, 85, -0.1, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,255,255,${0.35 - progress * 0.2})`;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Inner highlight
+    ctx.beginPath();
+    ctx.ellipse(W/2 - 18, H/2 - 18, 38, 32, -0.4, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255,255,255,${0.18 - progress * 0.12})`;
+    ctx.fill();
+
+    // Draw cracks
+    cracks.forEach(crack => {
+      drawCrack(crack);
+    });
+
+    // Shatter dissolve
+    if (shattered) {
+      drawShatter();
+    }
+  }
+
+  function drawCrack(crack) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(crack.x, crack.y);
+    let cx = crack.x, cy = crack.y;
+    crack.segments.forEach(seg => {
+      cx += seg.dx; cy += seg.dy;
+      ctx.lineTo(cx, cy);
+    });
+    const alpha = 0.6 + crack.depth * 0.2;
+    ctx.strokeStyle = `rgba(80,60,120,${alpha})`;
+    ctx.lineWidth = 0.8 + crack.depth * 0.4;
+    ctx.shadowColor = 'rgba(100,80,160,0.5)';
+    ctx.shadowBlur = 3;
+    ctx.stroke();
+    ctx.restore();
+
+    // Branch cracks
+    if (crack.branches) {
+      crack.branches.forEach(b => drawCrack(b));
+    }
+  }
+
+  function drawShatter() {
+    const progress = Math.min((Date.now() - shattered) / 2200, 1);
+    // Fragments drifting and fading
+    cracks.slice(0, 8).forEach((crack, i) => {
+      const angle = (i / 8) * Math.PI * 2;
+      const drift = progress * (30 + i * 8);
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
+      ctx.translate(
+        W/2 + Math.cos(angle) * drift,
+        H/2 + Math.sin(angle) * drift
+      );
+      ctx.rotate(angle * 0.3 + progress * 0.5);
+      const size = 18 - progress * 14;
+      if (size > 0) {
+        const fg = ctx.createRadialGradient(0,0,0,0,0,size);
+        fg.addColorStop(0, 'rgba(210,205,240,0.9)');
+        fg.addColorStop(1, 'rgba(180,170,220,0.3)');
+        ctx.beginPath();
+        ctx.arc(0, 0, size, 0, Math.PI * 2);
+        ctx.fillStyle = fg;
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+    if (progress < 1) requestAnimationFrame(draw);
+  }
+
+  function makeCrack(ox, oy, depth, spread) {
+    const segs = [];
+    let angle = Math.random() * Math.PI * 2;
+    const len = 18 + Math.random() * 24;
+    const steps = 5 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < steps; i++) {
+      angle += (Math.random() - 0.5) * 0.7;
+      const segLen = len / steps;
+      segs.push({ dx: Math.cos(angle) * segLen, dy: Math.sin(angle) * segLen });
+    }
+    const crack = { x: ox, y: oy, segments: segs, depth: depth || 1 };
+    if (depth < 2 && Math.random() > 0.4) {
+      const branchCount = 1 + Math.floor(Math.random() * 2);
+      crack.branches = [];
+      for (let b = 0; b < branchCount; b++) {
+        const prog = Math.floor(Math.random() * segs.length);
+        let bx = ox, by = oy;
+        for (let s = 0; s < prog; s++) { bx += segs[s].dx; by += segs[s].dy; }
+        crack.branches.push(makeCrack(bx, by, depth + 1, spread * 0.6));
+      }
+    }
+    return crack;
+  }
+
+  function onTap(e) {
+    if (shattered) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    // Only crack within the plate area
+    const dx = px - W/2, dy = py - H/2;
+    const inPlate = (dx*dx)/(90*90) + (dy*dy)/(85*85) <= 1.2;
+
+    if (!inPlate) {
+      // Still add a crack from center direction
+      const angle = Math.atan2(dy, dx);
+      const ex = W/2 + Math.cos(angle) * 60, ey = H/2 + Math.sin(angle) * 60;
+      cracks.push(makeCrack(ex, ey, 1));
+    } else {
+      cracks.push(makeCrack(px, py, 1));
+      // Extra cracks from center for held taps
+      if (tapCount > 4) {
+        const angle2 = Math.random() * Math.PI * 2;
+        const r = Math.random() * 50;
+        cracks.push(makeCrack(W/2 + Math.cos(angle2)*r, H/2 + Math.sin(angle2)*r, 1));
+      }
+    }
+
+    tapCount++;
+    const hint = document.getElementById('shatter-hint');
+    if (hint) {
+      if (tapCount === 1) hint.textContent = 'keep going…';
+      else if (tapCount < 5) hint.textContent = 'let it crack…';
+      else if (tapCount < 10) hint.textContent = 'almost…';
+      else hint.textContent = 'one more…';
+    }
+
+    draw();
+
+    if (tapCount >= 12) {
+      triggerShatter();
+    }
+  }
+
+  function triggerShatter() {
+    shattered = Date.now();
+    const hint = document.getElementById('shatter-hint');
+    if (hint) hint.style.display = 'none';
+    draw();
+    setTimeout(() => {
+      ctx.clearRect(0, 0, W, H);
+      const aftermath = document.getElementById('shatter-aftermath');
+      if (aftermath) aftermath.classList.add('show');
+      // Show song suggestion
+      const songEl = document.getElementById('shatter-song-here');
+      if (songEl) {
+        const mood = state.echoes[0]?.mood || 'reflective';
+        const tracks = SOUNDPRINTS[mood];
+        const track = tracks[Math.floor(Math.random() * tracks.length)];
+        const color = MOOD_COLORS[mood];
+        songEl.innerHTML = `
+          <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;opacity:.8">✦ something to listen to</div>
+          <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;align-items:stretch;max-width:380px;margin:0 auto">
+            <div style="width:64px;flex-shrink:0;background:linear-gradient(135deg,${color}55,${color}18);display:flex;align-items:center;justify-content:center;font-size:28px">${MOOD_COVER_EMOJI[mood]}</div>
+            <div style="padding:14px 16px;flex:1;text-align:left">
+              <div style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:2px">${track.song}</div>
+              <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${track.artist}</div>
+              <div style="display:flex;gap:8px">
+                <a href="${track.spotify}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-family:var(--font-mono);font-size:9px;text-decoration:none;letter-spacing:.08em;color:#1db954;border:1px solid rgba(29,185,84,.45);background:rgba(29,185,84,.1)">▶ Spotify</a>
+                <a href="${track.youtube}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-family:var(--font-mono);font-size:9px;text-decoration:none;letter-spacing:.08em;color:#ff5555;border:1px solid rgba(255,68,68,.4);background:rgba(255,68,68,.08)">▶ YouTube</a>
+              </div>
+            </div>
+          </div>`;
+      }
+    }, 2200);
+  }
+
+  return { init };
 })();
 
 /* ── FUN RITUALS ── */
@@ -2800,17 +1681,90 @@ const Rituals = (() => {
   const modal   = document.getElementById('fun-modal');
   const content = document.getElementById('fun-modal-content');
   let receiptTheme = 'classic';
+  let cleanupConflict = null;
 
   function open(type) {
-    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, stressball:buildStressBall};
+    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, shatter:buildShatter};
     const fn = builders[type];
     if (fn) { content.innerHTML = fn(); modal.classList.add('open'); postBuild(type); }
   }
 
+  const RITUAL_OB_SHOWN_KEY = 'echoRitualOb';
+
+  function getRitualOb(type) {
+    try { return JSON.parse(localStorage.getItem(RITUAL_OB_SHOWN_KEY) || '{}'); } catch(e) { return {}; }
+  }
+  function markRitualObShown(type) {
+    const shown = getRitualOb();
+    shown[type] = true;
+    localStorage.setItem(RITUAL_OB_SHOWN_KEY, JSON.stringify(shown));
+  }
+
+  const RITUAL_OB_DATA = {
+    receipt:  { icon:'🧾', title:'Your Mood Receipt', body:'This is a <strong>receipt of your emotions</strong> — itemized, timestamped, and totally yours. Pick a theme, then save or share your emotional bill.' },
+    dna:      { icon:'🧬', title:'Your Emotion DNA', body:'This card reveals your <strong>emotional archetype</strong> — the pattern woven through all your echoes. It shifts as you do.' },
+    crash:    { icon:'💻', title:'Crash Report', body:'When feelings overflow, systems crash. This is your <strong>emotional stack trace</strong> — absurd, honest, and very real.' },
+    sound:    { icon:'🎧', title:'Echo Soundprint', body:'Music matched to your current emotional frequency. <strong>Tap Spotify or YouTube</strong> to open the song. Breathe with the orb below.' },
+    shatter:  { icon:'🪞', title:'Shatter Softly', body:'A quiet ritual of release. <strong>Tap the surface</strong> to begin cracking it. Hold to spread the fractures. Let it break when you\'re ready.<br><br>This is not a game. It\'s a ceremony.' },
+    vsvs:     { icon:'⚔️', title:'Inner Conflict', body:'Your past self meets your present self. <strong>Drag the orbs</strong> to push them apart or let them collide. Watch what happens between them.' }
+  };
+
+  function showRitualOnboarding(type, onStart) {
+    const data = RITUAL_OB_DATA[type];
+    if (!data) { onStart(); return; }
+    const overlay = document.createElement('div');
+    overlay.className = 'ritual-ob-overlay';
+    overlay.innerHTML = `
+      <div class="ritual-ob-card">
+        <span class="ritual-ob-icon">${data.icon}</span>
+        <div class="ritual-ob-title">${data.title}</div>
+        <div class="ritual-ob-body">${data.body}</div>
+        <button class="ritual-ob-start" id="rob-start">Begin →</button>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#rob-start').addEventListener('click', () => {
+      overlay.remove();
+      markRitualObShown(type);
+      onStart();
+    });
+  }
+
+  function open(type) {
+    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, shatter:buildShatter};
+    const fn = builders[type];
+    if (!fn) return;
+    const shown = getRitualOb();
+    const doOpen = () => { content.innerHTML = fn(); modal.classList.add('open'); postBuild(type); };
+    if (!shown[type]) {
+      showRitualOnboarding(type, doOpen);
+    } else {
+      doOpen();
+    }
+  }
+
   function postBuild(type) {
-    if (type === 'vsvs')       setTimeout(startConflictAnimation, 100);
-    if (type === 'stressball') setTimeout(() => StressBall.init(), 50);
+    if (type === 'vsvs')    setTimeout(startConflictAnimation, 100);
+    if (type === 'shatter') setTimeout(() => ShatterSoftly.init(), 80);
+    if (type === 'sound') {
+      const relieverOrb = document.getElementById('reliever-orb');
+      if (relieverOrb) {
+        let breathing = false;
+        relieverOrb.addEventListener('click', () => {
+          breathing = !breathing;
+          relieverOrb.style.animationPlayState = breathing ? 'running' : 'paused';
+          if (breathing) {
+            relieverOrb.style.boxShadow = '0 0 32px rgba(201,168,76,.3)';
+            setTimeout(() => { relieverOrb.style.boxShadow = ''; }, 2000);
+          }
+        });
+      }
+    }
     if (type === 'receipt') {
+      const replayBtn = document.createElement('button');
+      replayBtn.className = 'ritual-ob-replay';
+      replayBtn.textContent = '? how to use';
+      replayBtn.addEventListener('click', () => showRitualOnboarding('receipt', () => {}));
+      content.appendChild(replayBtn);
       document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           receiptTheme = btn.dataset.theme;
@@ -2824,9 +1778,22 @@ const Rituals = (() => {
       document.getElementById('receipt-download-btn')?.addEventListener('click', downloadReceipt);
       document.getElementById('receipt-share-btn')?.addEventListener('click', shareReceipt);
     }
+    // Add replay button to all rituals
+    if (['dna','crash','sound','shatter','vsvs'].includes(type)) {
+      const replayBtn = document.createElement('button');
+      replayBtn.className = 'ritual-ob-replay';
+      replayBtn.style.cssText='display:block;margin:14px auto 0;';
+      replayBtn.textContent = '? how to use';
+      replayBtn.addEventListener('click', () => showRitualOnboarding(type, () => {}));
+      content.appendChild(replayBtn);
+    }
   }
 
-  function close() { modal.classList.remove('open'); }
+  function close() {
+    cleanupConflict?.();
+    cleanupConflict = null;
+    modal.classList.remove('open');
+  }
 
   /* Character image pool */
   const CHAR_IMGS = [
@@ -2926,11 +1893,7 @@ const Rituals = (() => {
   function loadHtml2Canvas() {
     return new Promise((resolve, reject) => {
       if (window.html2canvas) { resolve(window.html2canvas); return; }
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload  = () => resolve(window.html2canvas);
-      s.onerror = () => reject(new Error('Failed to load html2canvas'));
-      document.head.appendChild(s);
+      reject(new Error('html2canvas is unavailable'));
     });
   }
 
@@ -3047,19 +2010,32 @@ const Rituals = (() => {
     const tracks = SOUNDPRINTS[mood] || SOUNDPRINTS.reflective;
     const color  = MOOD_COLORS[mood];
     const coverEmoji = MOOD_COVER_EMOJI[mood] || '🎵';
+
+    const relieverMessages = {
+      calm:'You carried your stillness here. Stay a moment longer.',
+      chaos:'The noise needed somewhere to go. Let this hold it.',
+      reflective:'The quiet inside deserves this kind of company.',
+      anxious:"Breathe with this. You don't have to solve anything right now.",
+      joyful:'Some feelings deserve to be heard out loud.',
+      empty:'Even the void has a sound. This is yours.'
+    };
+    const relieverEmojis = {calm:'🌊',chaos:'⚡',reflective:'🌙',anxious:'🫁',joyful:'🌸',empty:'◯'};
+
     return `<div class="soundprint-card">
       <div class="soundprint-title">Echo Soundprint</div>
-      <div class="soundprint-sub">Resonating with your ${MOOD_EMOJIS[mood]} ${mood} frequency</div>
+      <div class="soundprint-sub">Resonating with your ${MOOD_EMOJIS[mood]} <strong style="color:var(--text);font-style:normal">${mood}</strong> frequency</div>
       <div class="track-list">${tracks.map((t,i)=>`
         <div class="track-item">
-          <div class="track-cover" style="background:${color}22">
+          <div class="track-cover" style="background:linear-gradient(135deg,${color}55,${color}1a)">
             <div class="track-cover-glow" style="background:${color}"></div>
             <div class="track-cover-emoji">${coverEmoji}</div>
           </div>
           <div class="track-body">
-            <div class="track-num">0${i+1}</div>
-            <div class="track-song">${t.song}</div>
-            <div class="track-artist">${t.artist}</div>
+            <div>
+              <div class="track-num">0${i+1}</div>
+              <div class="track-song">${t.song}</div>
+              <div class="track-artist">${t.artist}</div>
+            </div>
             <div class="track-reason">${t.reason}</div>
             <div class="track-links">
               <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer">Spotify</a>
@@ -3068,11 +2044,32 @@ const Rituals = (() => {
           </div>
         </div>`).join('')}
       </div>
+      <div class="soundprint-reliever">
+        <div class="reliever-label">✦ a moment for you</div>
+        <div class="reliever-text">${relieverMessages[mood] || relieverMessages.reflective}</div>
+        <div class="reliever-breath" id="reliever-orb" role="button" aria-label="Breathing orb — tap and breathe">
+          <div class="reliever-breath-ring"></div>
+          ${relieverEmojis[mood] || '◯'}
+        </div>
+        <div class="reliever-breath-hint">tap · breathe · release</div>
+      </div>
     </div>`;
   }
 
-  function buildStressBall() {
-    return StressBall.buildHTML();
+  function buildShatter() {
+    return `<div class="shatter-stage">
+      <div class="shatter-title">Shatter Softly</div>
+      <div class="shatter-sub">A quiet ceremony of release.<br>Tap to begin cracking the surface.</div>
+      <div class="shatter-canvas-wrap">
+        <canvas id="shatter-canvas" width="240" height="240" aria-label="Shatter surface — tap to crack"></canvas>
+      </div>
+      <div class="shatter-hint" id="shatter-hint">tap gently to begin</div>
+      <div class="shatter-aftermath" id="shatter-aftermath">
+        <div class="shatter-release-line">"you didn't need<br>to carry that"</div>
+        <div class="shatter-song-suggestion" id="shatter-song-here"></div>
+        <button class="shatter-back" id="shatter-reset-btn">← begin again</button>
+      </div>
+    </div>`;
   }
 
   function buildConflict() {
@@ -3089,6 +2086,8 @@ const Rituals = (() => {
   }
 
   function startConflictAnimation() {
+    cleanupConflict?.();
+    cleanupConflict = null;
     const canvas = document.getElementById('conflict-canvas');
     if (!canvas) return;
     const parent = canvas.parentElement;
@@ -3109,25 +2108,31 @@ const Rituals = (() => {
 
     let dragging = null;
 
-    canvas.addEventListener('pointerdown', e => {
+    const onPointerDown = (e) => {
       const rect = canvas.getBoundingClientRect();
       const mx = e.clientX - rect.left, my = e.clientY - rect.top;
       entities.forEach(en => {
         const dx = mx-en.x, dy = my-en.y;
         if (Math.sqrt(dx*dx+dy*dy) < en.r+10) dragging = en;
       });
-    });
-    canvas.addEventListener('pointermove', e => {
+    };
+    const onPointerMove = (e) => {
       if (!dragging) return;
       const rect = canvas.getBoundingClientRect();
       dragging.vx = (e.clientX - rect.left - dragging.x) * 0.2;
       dragging.vy = (e.clientY - rect.top  - dragging.y) * 0.2;
-    });
-    canvas.addEventListener('pointerup', () => { dragging = null; });
+    };
+    const onPointerUp = () => { dragging = null; };
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
 
     let phase = 0;
+    let rafId = null;
+    let disposed = false;
     function frame() {
       if (!document.getElementById('conflict-canvas')) return;
+      if (disposed) return;
       ctx.clearRect(0,0,w,h);
       phase += 0.012;
 
@@ -3180,9 +2185,16 @@ const Rituals = (() => {
         ctx.strokeStyle = en.color + '66'; ctx.lineWidth=1.5; ctx.stroke();
       });
 
-      requestAnimationFrame(frame);
+      rafId = requestAnimationFrame(frame);
     }
     frame();
+    cleanupConflict = () => {
+      disposed = true;
+      if (rafId) cancelAnimationFrame(rafId);
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerup', onPointerUp);
+    };
   }
 
   document.querySelectorAll('.fun-card').forEach(card => {
@@ -3275,6 +2287,3 @@ function init() {
 init();
 
 })();
-</script>
-</body>
-</html>
