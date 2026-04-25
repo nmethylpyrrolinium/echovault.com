@@ -13,7 +13,7 @@
 :root {
   --void:#050508;--deep:#0a0a12;--surface:#12121f;--surface2:#16162a;
   --border:rgba(255,255,255,.09);--border2:rgba(255,255,255,.15);
-  --muted:rgba(255,255,255,.68);--text:rgba(255,255,255,.97);
+  --muted:rgba(255,255,255,.52);--text:rgba(255,255,255,.94);
   --gold:#c9a84c;--gold-dim:rgba(201,168,76,.35);--gold-faint:rgba(201,168,76,.08);
   --calm:#5b8fa8;--chaos:#c44b4b;--reflective:#7c6fa0;
   --anxious:#c47a3a;--joyful:#7aab6e;--empty:#4a4a5a;
@@ -180,16 +180,16 @@ nav{
 /* ── ENTRY VIEW ── */
 .entry-container{max-width:640px;margin:0 auto}
 .view-title{
-  font-family:var(--font-display);font-size:clamp(28px,5vw,50px);
-  font-weight:400;margin-bottom:10px;color:var(--gold);
-  letter-spacing:.05em;text-shadow:0 0 40px rgba(201,168,76,.18);
+  font-family:var(--font-display);font-size:clamp(26px,5vw,44px);
+  font-weight:400;margin-bottom:8px;color:var(--gold);
+  letter-spacing:.05em;
 }
-.view-subtitle{font-size:17px;font-style:italic;color:var(--muted);margin-bottom:48px;line-height:1.68;letter-spacing:.01em}
+.view-subtitle{font-size:16px;font-style:italic;color:var(--muted);margin-bottom:44px;line-height:1.6}
 .form-section{margin-bottom:36px}
 .form-label{
   font-family:var(--font-mono);font-size:10px;letter-spacing:.22em;
   text-transform:uppercase;color:var(--gold);margin-bottom:14px;display:block;
-  font-weight:400;opacity:.95;
+  font-weight:400;
 }
 
 /* Mood Grid */
@@ -497,23 +497,6 @@ nav{
 .receipt.romantic .receipt-paper{background:linear-gradient(135deg,#1a0810,#0d0018);color:rgba(255,200,220,.9);border:1px solid rgba(255,100,150,.2)}
 .receipt.romantic .receipt-store{background:linear-gradient(135deg,#ff6b9d,#c44dff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 
-/* Receipt character images */
-.receipt-chars{
-  position:absolute;pointer-events:none;z-index:3;
-}
-.receipt-char-img{
-  position:absolute;
-  width:56px;height:56px;
-  border-radius:12px;
-  opacity:.92;
-  object-fit:cover;
-  box-shadow:0 0 14px rgba(201,168,76,.35),0 2px 10px rgba(0,0,0,.4);
-}
-.receipt-char-img.pos-tr{top:10px;right:10px}
-.receipt-char-img.pos-br{bottom:10px;right:10px}
-.receipt-char-img.pos-bl{bottom:10px;left:10px}
-.receipt-char-img.small{width:40px;height:40px;border-radius:50%}
-
 /* Receipt theme selector */
 .receipt-themes{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 .theme-btn{
@@ -571,88 +554,46 @@ nav{
 
 /* ── SOUNDPRINT (enhanced) ── */
 .soundprint-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px}
-.soundprint-title{font-family:var(--font-editorial);font-size:26px;color:var(--gold);margin-bottom:6px;font-weight:700;letter-spacing:.02em}
-.soundprint-sub{font-size:15px;font-style:italic;color:var(--muted);margin-bottom:28px}
-.track-list{display:flex;flex-direction:column;gap:20px}
+.soundprint-title{font-family:var(--font-editorial);font-size:24px;color:var(--gold);margin-bottom:6px}
+.soundprint-sub{font-size:14px;font-style:italic;color:var(--muted);margin-bottom:26px}
+.track-list{display:flex;flex-direction:column;gap:16px}
 .track-item{
   display:flex;gap:0;align-items:stretch;
-  background:rgba(255,255,255,.03);border:1px solid var(--border);
-  border-radius:12px;overflow:hidden;
-  transition:border-color .3s,background .3s,transform .25s,box-shadow .3s;
+  background:rgba(255,255,255,.025);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+  transition:border-color .3s,background .3s,transform .2s;
 }
-.track-item:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.18);transform:translateX(4px);box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.track-item:hover{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);transform:translateX(3px)}
 
 /* Big album cover */
 .track-cover{
-  width:100px;height:100px;flex-shrink:0;
+  width:90px;height:90px;flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  font-size:36px;position:relative;overflow:hidden;
+  font-size:36px;position:relative;
 }
-.track-cover-bg{
-  position:absolute;inset:0;opacity:.85;
-  display:flex;align-items:center;justify-content:center;
-  font-size:52px;filter:blur(0px);
-  transition:transform .4s var(--ease);
-}
-.track-item:hover .track-cover-bg{transform:scale(1.08)}
 .track-cover-glow{
   position:absolute;inset:0;
-  filter:blur(16px);opacity:.5;z-index:0;
+  filter:blur(12px);opacity:.3;
 }
-.track-cover-emoji{position:relative;z-index:2;font-size:40px;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
+.track-cover-emoji{position:relative;z-index:1;font-size:38px}
 
-.track-body{flex:1;padding:16px 18px;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
-.track-num{font-family:var(--font-mono);font-size:10px;color:var(--gold);margin-bottom:4px;opacity:.8}
-.track-song{font-size:17px;color:var(--text);margin-bottom:3px;font-weight:600;letter-spacing:.01em}
-.track-artist{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.12em}
-.track-reason{font-size:13px;font-style:italic;color:rgba(255,255,255,.55);line-height:1.55;margin-bottom:12px}
-.track-links{display:flex;gap:8px;flex-wrap:wrap}
+.track-body{flex:1;padding:14px 16px;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
+.track-num{font-family:var(--font-mono);font-size:10px;color:var(--gold);margin-bottom:3px}
+.track-song{font-size:16px;color:var(--text);margin-bottom:2px;font-weight:400}
+.track-artist{font-family:var(--font-mono);font-size:10px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.1em}
+.track-reason{font-size:12px;font-style:italic;color:rgba(255,255,255,.42);line-height:1.5;margin-bottom:8px}
+.track-links{display:flex;gap:6px;flex-wrap:wrap}
 .track-link{
-  display:inline-flex;align-items:center;gap:6px;
-  padding:7px 16px;border-radius:20px;font-family:var(--font-mono);font-size:10px;
-  text-decoration:none;letter-spacing:.08em;transition:all .25s;
-  border:1px solid;font-weight:500;cursor:pointer;
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 12px;border-radius:20px;font-family:var(--font-mono);font-size:9px;
+  text-decoration:none;letter-spacing:.06em;transition:opacity .2s,transform .2s;
+  border:1px solid;font-weight:400;
 }
-.track-link:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3)}
-.track-link.spotify{color:#1db954;border-color:rgba(29,185,84,.45);background:rgba(29,185,84,.1)}
-.track-link.spotify:hover{background:rgba(29,185,84,.22);border-color:rgba(29,185,84,.7);color:#25e066}
-.track-link.youtube{color:#ff5555;border-color:rgba(255,68,68,.4);background:rgba(255,68,68,.08)}
-.track-link.youtube:hover{background:rgba(255,68,68,.2);border-color:rgba(255,85,85,.7);color:#ff7070}
-.track-link.spotify::before{content:'▶';font-size:9px}
-.track-link.youtube::before{content:'▶';font-size:9px}
-
-/* Reliever layer under soundprint */
-.soundprint-reliever{
-  margin-top:24px;padding:20px;
-  background:rgba(255,255,255,.025);border:1px solid var(--border);
-  border-radius:10px;text-align:center;
-  animation:fadeUp .8s .3s var(--ease) both;
-}
-.reliever-label{font-family:var(--font-mono);font-size:9px;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;opacity:.8}
-.reliever-text{font-size:14px;font-style:italic;color:var(--muted);margin-bottom:16px;line-height:1.7}
-.reliever-breath{
-  width:56px;height:56px;border-radius:50%;margin:0 auto;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:22px;
-  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);
-  transition:transform .3s var(--ease),box-shadow .3s;
-  animation:relievBreath 4s ease-in-out infinite;
-  position:relative;
-}
-.reliever-breath:hover{transform:scale(1.12);box-shadow:0 0 24px rgba(201,168,76,.25)}
-@keyframes relievBreath{
-  0%,100%{transform:scale(1);opacity:.8}
-  50%{transform:scale(1.14);opacity:1}
-}
-.reliever-breath-ring{
-  position:absolute;inset:-6px;border-radius:50%;
-  border:1px solid rgba(201,168,76,.2);
-  animation:relievRingPulse 4s ease-in-out infinite;
-}
-@keyframes relievRingPulse{
-  0%,100%{transform:scale(1);opacity:.5}
-  50%{transform:scale(1.2);opacity:.1}
-}
-.reliever-breath-hint{margin-top:10px;font-family:var(--font-mono);font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:rgba(255,255,255,.3)}
+.track-link:hover{opacity:.8;transform:scale(.97)}
+.track-link.spotify{color:#1db954;border-color:rgba(29,185,84,.35);background:rgba(29,185,84,.08)}
+.track-link.youtube{color:#ff4444;border-color:rgba(255,68,68,.3);background:rgba(255,68,68,.06)}
+.track-link.spotify::before{content:'▶ '}
+.track-link.youtube::before{content:'▶ '}
 
 /* ── YOU vs YOU (inner conflict) ── */
 .conflict-arena{
@@ -1052,83 +993,6 @@ body.midnight{
 }
 .stress-ball-back:hover{color:var(--text);border-color:var(--border2)}
 
-/* ── SHATTER SOFTLY ── */
-.shatter-stage{
-  max-width:480px;margin:0 auto;text-align:center;padding:28px 20px 24px;
-}
-.shatter-title{
-  font-family:var(--font-display);font-size:clamp(22px,4vw,32px);
-  color:var(--gold);margin-bottom:8px;letter-spacing:.06em;
-}
-.shatter-sub{font-size:15px;font-style:italic;color:var(--muted);margin-bottom:36px;line-height:1.75}
-.shatter-canvas-wrap{position:relative;width:240px;height:240px;margin:0 auto 28px}
-#shatter-canvas{display:block;border-radius:4px}
-.shatter-hint{
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;
-  color:rgba(255,255,255,.3);margin-bottom:0;
-  animation:shatterHintPulse 2.5s ease-in-out infinite;
-}
-@keyframes shatterHintPulse{0%,100%{opacity:.3}50%{opacity:.6}}
-.shatter-aftermath{
-  display:none;padding:32px 20px;text-align:center;
-  animation:fadeUp .9s var(--ease) forwards;
-}
-.shatter-aftermath.show{display:block}
-.shatter-release-line{
-  font-family:var(--font-editorial);font-size:22px;font-style:italic;
-  color:rgba(255,255,255,.88);margin-bottom:28px;line-height:1.55;
-  letter-spacing:.02em;
-}
-.shatter-song-suggestion{margin-top:24px}
-.shatter-back{
-  margin-top:28px;background:none;border:1px solid var(--border);
-  color:var(--muted);padding:10px 24px;border-radius:var(--radius);
-  font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;
-  text-transform:uppercase;transition:all .25s;
-}
-.shatter-back:hover{color:var(--text);border-color:var(--border2)}
-
-/* ── RITUAL ONBOARDING OVERLAY ── */
-.ritual-ob-overlay{
-  position:fixed;inset:0;z-index:400;
-  background:rgba(5,5,8,.94);backdrop-filter:blur(24px);
-  display:flex;align-items:center;justify-content:center;padding:24px;
-}
-.ritual-ob-card{
-  max-width:460px;width:100%;background:var(--surface);
-  border:1px solid var(--border2);border-radius:16px;
-  padding:40px 36px;text-align:center;
-  animation:scaleIn .35s var(--ease) forwards;position:relative;
-}
-.ritual-ob-icon{font-size:48px;margin-bottom:18px;display:block}
-.ritual-ob-title{
-  font-family:var(--font-display);font-size:clamp(18px,3.5vw,26px);
-  color:var(--gold);margin-bottom:12px;letter-spacing:.05em;
-}
-.ritual-ob-body{
-  font-size:15px;line-height:1.85;color:var(--muted);
-  margin-bottom:30px;font-style:italic;
-}
-.ritual-ob-body strong{color:var(--text);font-style:normal}
-.ritual-ob-start{
-  background:var(--gold);color:var(--void);border:none;
-  padding:13px 36px;font-family:var(--font-mono);font-size:11px;
-  letter-spacing:.15em;text-transform:uppercase;border-radius:3px;
-  transition:background .3s,transform .2s;
-}
-.ritual-ob-start:hover{background:#d4b45a;transform:translateY(-1px)}
-.ritual-ob-replay{
-  display:inline-flex;align-items:center;gap:5px;
-  background:none;border:none;color:rgba(255,255,255,.28);
-  font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;
-  text-transform:uppercase;padding:8px 12px;transition:color .25s;cursor:pointer;
-  margin-top:14px;
-}
-.ritual-ob-replay:hover{color:var(--muted)}
-
-/* ── FOCUS SCROLL BEHAVIOR ── */
-.view.active{scroll-margin-top:0}
-
 /* ── ANIMATIONS ── */
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.93)}to{opacity:1;transform:scale(1)}}
@@ -1418,10 +1282,10 @@ body.midnight{
         <div class="fun-card-title">Echo Soundprint</div>
         <div class="fun-card-desc">Songs resonating with your frequency.</div>
       </div>
-      <div class="fun-card" data-fun="shatter" style="--card-glow:rgba(150,130,180,.08)" role="button" tabindex="0" aria-label="Open Shatter Softly ritual">
-        <div class="fun-card-icon" aria-hidden="true">🪞</div>
-        <div class="fun-card-title">Shatter Softly</div>
-        <div class="fun-card-desc">A quiet ritual of release. Let it break, gently.</div>
+      <div class="fun-card" data-fun="stressball" style="--card-glow:rgba(91,143,168,.08)" role="button" tabindex="0" aria-label="Open Digital Stress Ball">
+        <div class="fun-card-icon" aria-hidden="true">🫧</div>
+        <div class="fun-card-title">Digital Stress Ball</div>
+        <div class="fun-card-desc">Squeeze it. Breathe. Repeat.</div>
       </div>
       <div class="fun-card" data-fun="vsvs" style="--card-glow:rgba(100,160,200,.06)" role="button" tabindex="0" aria-label="Open Inner Conflict">
         <div class="fun-card-icon" aria-hidden="true">⚔️</div>
@@ -1615,20 +1479,7 @@ const Nav = (() => {
     if (name === 'timeline') { Timeline.render(); setTimeout(ConnectionCanvas.render, 60); }
     if (name === 'wrapped')  Wrapped.render();
     if (name === 'home')     IdentityCore.update();
-    // Smooth scroll to top of the view content, then to the active section
     window.scrollTo({top:0, behavior:'smooth'});
-    // After the scroll, ensure the view's first meaningful content is in focus
-    setTimeout(() => {
-      const activeView = viewEls[name];
-      if (!activeView) return;
-      const firstFocusable = activeView.querySelector('.view-title, h2, .hero-title, .fun-grid, #bubble-field, #wrapped-content, .wrapped-card, .entry-container');
-      if (firstFocusable) {
-        const rect = firstFocusable.getBoundingClientRect();
-        if (rect.top < 0 || rect.top > window.innerHeight * 0.3) {
-          firstFocusable.scrollIntoView({behavior:'smooth', block:'start'});
-        }
-      }
-    }, 80);
   }
   return {show};
 })();
@@ -2871,229 +2722,60 @@ const MidnightMode = (() => {
   return {check};
 })();
 
-/* ── SHATTER SOFTLY ── */
-const ShatterSoftly = (() => {
-  let canvas, ctx, cracks = [], shattered = false, tapCount = 0;
-  const W = 240, H = 240;
+/* ── DIGITAL STRESS BALL ── */
+const StressBall = (() => {
+  let squeezeCount = 0;
+  let breathingActive = false;
+  let breathTimer = null;
+
+  function buildHTML() {
+    return `<div id="stress-ball-section">
+      <div class="stress-ball-title">Digital Stress Ball</div>
+      <div class="stress-ball-sub">Hold and squeeze. Let it reshape. Breathe with it.</div>
+      <div class="squeeze-wrap">
+        <div class="squeeze-breath-ring" id="sb-breath-ring"></div>
+        <div id="squeeze-orb" role="button" tabindex="0" aria-label="Squeeze the stress ball"></div>
+      </div>
+      <div class="squeeze-count" id="squeeze-count">press to begin</div>
+    </div>`;
+  }
 
   function init() {
-    canvas = document.getElementById('shatter-canvas');
-    if (!canvas) return;
-    ctx = canvas.getContext('2d');
-    cracks = []; shattered = false; tapCount = 0;
-    draw();
+    const orb  = document.getElementById('squeeze-orb');
+    const cnt  = document.getElementById('squeeze-count');
+    const ring = document.getElementById('sb-breath-ring');
+    if (!orb) return;
 
-    canvas.addEventListener('pointerdown', onTap);
-    canvas.addEventListener('touchstart', e => e.preventDefault(), {passive:false});
-
-    document.getElementById('shatter-reset-btn')?.addEventListener('click', () => {
-      cracks = []; shattered = false; tapCount = 0;
-      document.getElementById('shatter-aftermath').classList.remove('show');
-      document.getElementById('shatter-hint').style.display = '';
-      draw();
-    });
-  }
-
-  function draw() {
-    if (!ctx) return;
-    ctx.clearRect(0, 0, W, H);
-
-    // Object surface — ceramic plate look
-    const progress = Math.min(tapCount / 12, 1);
-    const surfaceAlpha = 0.92 - progress * 0.3;
-
-    // Background glow
-    const glow = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.52);
-    glow.addColorStop(0, `rgba(200,190,255,${0.06 - progress*0.04})`);
-    glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
-
-    // Main plate
-    const plateGrd = ctx.createRadialGradient(W/2 - 20, H/2 - 20, 0, W/2, H/2, W * 0.44);
-    plateGrd.addColorStop(0, `rgba(230,225,245,${surfaceAlpha})`);
-    plateGrd.addColorStop(0.55, `rgba(200,195,225,${surfaceAlpha * 0.9})`);
-    plateGrd.addColorStop(1, `rgba(160,150,200,${surfaceAlpha * 0.7})`);
-    ctx.beginPath();
-    ctx.ellipse(W/2, H/2, 90, 85, -0.1, 0, Math.PI * 2);
-    ctx.fillStyle = plateGrd;
-    ctx.fill();
-
-    // Plate rim
-    ctx.beginPath();
-    ctx.ellipse(W/2, H/2, 90, 85, -0.1, 0, Math.PI * 2);
-    ctx.strokeStyle = `rgba(255,255,255,${0.35 - progress * 0.2})`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // Inner highlight
-    ctx.beginPath();
-    ctx.ellipse(W/2 - 18, H/2 - 18, 38, 32, -0.4, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(255,255,255,${0.18 - progress * 0.12})`;
-    ctx.fill();
-
-    // Draw cracks
-    cracks.forEach(crack => {
-      drawCrack(crack);
-    });
-
-    // Shatter dissolve
-    if (shattered) {
-      drawShatter();
+    function onPress() {
+      orb.classList.add('squeezed');
     }
-  }
+    function onRelease() {
+      orb.classList.remove('squeezed');
+      squeezeCount++;
+      cnt.textContent = squeezeCount === 1 ? 'keep going…' :
+                        squeezeCount < 5   ? `${squeezeCount} squeezes` :
+                        squeezeCount < 10  ? `${squeezeCount} — you're in it` :
+                        `${squeezeCount} — let it slow now`;
+      cnt.classList.add('glowing');
+      setTimeout(() => cnt.classList.remove('glowing'), 600);
 
-  function drawCrack(crack) {
-    ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(crack.x, crack.y);
-    let cx = crack.x, cy = crack.y;
-    crack.segments.forEach(seg => {
-      cx += seg.dx; cy += seg.dy;
-      ctx.lineTo(cx, cy);
-    });
-    const alpha = 0.6 + crack.depth * 0.2;
-    ctx.strokeStyle = `rgba(80,60,120,${alpha})`;
-    ctx.lineWidth = 0.8 + crack.depth * 0.4;
-    ctx.shadowColor = 'rgba(100,80,160,0.5)';
-    ctx.shadowBlur = 3;
-    ctx.stroke();
-    ctx.restore();
-
-    // Branch cracks
-    if (crack.branches) {
-      crack.branches.forEach(b => drawCrack(b));
-    }
-  }
-
-  function drawShatter() {
-    const progress = Math.min((Date.now() - shattered) / 2200, 1);
-    // Fragments drifting and fading
-    cracks.slice(0, 8).forEach((crack, i) => {
-      const angle = (i / 8) * Math.PI * 2;
-      const drift = progress * (30 + i * 8);
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, 1 - progress * 1.3);
-      ctx.translate(
-        W/2 + Math.cos(angle) * drift,
-        H/2 + Math.sin(angle) * drift
-      );
-      ctx.rotate(angle * 0.3 + progress * 0.5);
-      const size = 18 - progress * 14;
-      if (size > 0) {
-        const fg = ctx.createRadialGradient(0,0,0,0,0,size);
-        fg.addColorStop(0, 'rgba(210,205,240,0.9)');
-        fg.addColorStop(1, 'rgba(180,170,220,0.3)');
-        ctx.beginPath();
-        ctx.arc(0, 0, size, 0, Math.PI * 2);
-        ctx.fillStyle = fg;
-        ctx.fill();
-      }
-      ctx.restore();
-    });
-    if (progress < 1) requestAnimationFrame(draw);
-  }
-
-  function makeCrack(ox, oy, depth, spread) {
-    const segs = [];
-    let angle = Math.random() * Math.PI * 2;
-    const len = 18 + Math.random() * 24;
-    const steps = 5 + Math.floor(Math.random() * 5);
-    for (let i = 0; i < steps; i++) {
-      angle += (Math.random() - 0.5) * 0.7;
-      const segLen = len / steps;
-      segs.push({ dx: Math.cos(angle) * segLen, dy: Math.sin(angle) * segLen });
-    }
-    const crack = { x: ox, y: oy, segments: segs, depth: depth || 1 };
-    if (depth < 2 && Math.random() > 0.4) {
-      const branchCount = 1 + Math.floor(Math.random() * 2);
-      crack.branches = [];
-      for (let b = 0; b < branchCount; b++) {
-        const prog = Math.floor(Math.random() * segs.length);
-        let bx = ox, by = oy;
-        for (let s = 0; s < prog; s++) { bx += segs[s].dx; by += segs[s].dy; }
-        crack.branches.push(makeCrack(bx, by, depth + 1, spread * 0.6));
-      }
-    }
-    return crack;
-  }
-
-  function onTap(e) {
-    if (shattered) return;
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-
-    // Only crack within the plate area
-    const dx = px - W/2, dy = py - H/2;
-    const inPlate = (dx*dx)/(90*90) + (dy*dy)/(85*85) <= 1.2;
-
-    if (!inPlate) {
-      // Still add a crack from center direction
-      const angle = Math.atan2(dy, dx);
-      const ex = W/2 + Math.cos(angle) * 60, ey = H/2 + Math.sin(angle) * 60;
-      cracks.push(makeCrack(ex, ey, 1));
-    } else {
-      cracks.push(makeCrack(px, py, 1));
-      // Extra cracks from center for held taps
-      if (tapCount > 4) {
-        const angle2 = Math.random() * Math.PI * 2;
-        const r = Math.random() * 50;
-        cracks.push(makeCrack(W/2 + Math.cos(angle2)*r, H/2 + Math.sin(angle2)*r, 1));
+      // After 5 presses, start breathing guide
+      if (squeezeCount >= 5 && !breathingActive) {
+        breathingActive = true;
+        ring.classList.add('breathing');
+        cnt.textContent = 'breathe with the ring…';
       }
     }
 
-    tapCount++;
-    const hint = document.getElementById('shatter-hint');
-    if (hint) {
-      if (tapCount === 1) hint.textContent = 'keep going…';
-      else if (tapCount < 5) hint.textContent = 'let it crack…';
-      else if (tapCount < 10) hint.textContent = 'almost…';
-      else hint.textContent = 'one more…';
-    }
-
-    draw();
-
-    if (tapCount >= 12) {
-      triggerShatter();
-    }
+    orb.addEventListener('pointerdown', onPress, {passive:true});
+    document.addEventListener('pointerup', onRelease, {once:false});
+    orb.addEventListener('pointerleave', onRelease, {passive:true});
+    orb.addEventListener('keydown', e => {
+      if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onPress(); setTimeout(onRelease, 300); }
+    });
   }
 
-  function triggerShatter() {
-    shattered = Date.now();
-    const hint = document.getElementById('shatter-hint');
-    if (hint) hint.style.display = 'none';
-    draw();
-    setTimeout(() => {
-      ctx.clearRect(0, 0, W, H);
-      const aftermath = document.getElementById('shatter-aftermath');
-      if (aftermath) aftermath.classList.add('show');
-      // Show song suggestion
-      const songEl = document.getElementById('shatter-song-here');
-      if (songEl) {
-        const mood = state.echoes[0]?.mood || 'reflective';
-        const tracks = SOUNDPRINTS[mood];
-        const track = tracks[Math.floor(Math.random() * tracks.length)];
-        const color = MOOD_COLORS[mood];
-        songEl.innerHTML = `
-          <div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;opacity:.8">✦ something to listen to</div>
-          <div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;align-items:stretch;max-width:380px;margin:0 auto">
-            <div style="width:64px;flex-shrink:0;background:linear-gradient(135deg,${color}55,${color}18);display:flex;align-items:center;justify-content:center;font-size:28px">${MOOD_COVER_EMOJI[mood]}</div>
-            <div style="padding:14px 16px;flex:1;text-align:left">
-              <div style="font-size:15px;color:var(--text);font-weight:600;margin-bottom:2px">${track.song}</div>
-              <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${track.artist}</div>
-              <div style="display:flex;gap:8px">
-                <a href="${track.spotify}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-family:var(--font-mono);font-size:9px;text-decoration:none;letter-spacing:.08em;color:#1db954;border:1px solid rgba(29,185,84,.45);background:rgba(29,185,84,.1)">▶ Spotify</a>
-                <a href="${track.youtube}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:20px;font-family:var(--font-mono);font-size:9px;text-decoration:none;letter-spacing:.08em;color:#ff5555;border:1px solid rgba(255,68,68,.4);background:rgba(255,68,68,.08)">▶ YouTube</a>
-              </div>
-            </div>
-          </div>`;
-      }
-    }, 2200);
-  }
-
-  return { init };
+  return {buildHTML, init};
 })();
 
 /* ── FUN RITUALS ── */
@@ -3103,87 +2785,15 @@ const Rituals = (() => {
   let receiptTheme = 'classic';
 
   function open(type) {
-    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, shatter:buildShatter};
+    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, stressball:buildStressBall};
     const fn = builders[type];
     if (fn) { content.innerHTML = fn(); modal.classList.add('open'); postBuild(type); }
   }
 
-  const RITUAL_OB_SHOWN_KEY = 'echoRitualOb';
-
-  function getRitualOb(type) {
-    try { return JSON.parse(localStorage.getItem(RITUAL_OB_SHOWN_KEY) || '{}'); } catch(e) { return {}; }
-  }
-  function markRitualObShown(type) {
-    const shown = getRitualOb();
-    shown[type] = true;
-    localStorage.setItem(RITUAL_OB_SHOWN_KEY, JSON.stringify(shown));
-  }
-
-  const RITUAL_OB_DATA = {
-    receipt:  { icon:'🧾', title:'Your Mood Receipt', body:'This is a <strong>receipt of your emotions</strong> — itemized, timestamped, and totally yours. Pick a theme, then save or share your emotional bill.' },
-    dna:      { icon:'🧬', title:'Your Emotion DNA', body:'This card reveals your <strong>emotional archetype</strong> — the pattern woven through all your echoes. It shifts as you do.' },
-    crash:    { icon:'💻', title:'Crash Report', body:'When feelings overflow, systems crash. This is your <strong>emotional stack trace</strong> — absurd, honest, and very real.' },
-    sound:    { icon:'🎧', title:'Echo Soundprint', body:'Music matched to your current emotional frequency. <strong>Tap Spotify or YouTube</strong> to open the song. Breathe with the orb below.' },
-    shatter:  { icon:'🪞', title:'Shatter Softly', body:'A quiet ritual of release. <strong>Tap the surface</strong> to begin cracking it. Hold to spread the fractures. Let it break when you\'re ready.<br><br>This is not a game. It\'s a ceremony.' },
-    vsvs:     { icon:'⚔️', title:'Inner Conflict', body:'Your past self meets your present self. <strong>Drag the orbs</strong> to push them apart or let them collide. Watch what happens between them.' }
-  };
-
-  function showRitualOnboarding(type, onStart) {
-    const data = RITUAL_OB_DATA[type];
-    if (!data) { onStart(); return; }
-    const overlay = document.createElement('div');
-    overlay.className = 'ritual-ob-overlay';
-    overlay.innerHTML = `
-      <div class="ritual-ob-card">
-        <span class="ritual-ob-icon">${data.icon}</span>
-        <div class="ritual-ob-title">${data.title}</div>
-        <div class="ritual-ob-body">${data.body}</div>
-        <button class="ritual-ob-start" id="rob-start">Begin →</button>
-      </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector('#rob-start').addEventListener('click', () => {
-      overlay.remove();
-      markRitualObShown(type);
-      onStart();
-    });
-  }
-
-  function open(type) {
-    const builders = {receipt:buildReceipt, dna:buildDNA, crash:buildCrash, sound:buildSound, vsvs:buildConflict, shatter:buildShatter};
-    const fn = builders[type];
-    if (!fn) return;
-    const shown = getRitualOb();
-    const doOpen = () => { content.innerHTML = fn(); modal.classList.add('open'); postBuild(type); };
-    if (!shown[type]) {
-      showRitualOnboarding(type, doOpen);
-    } else {
-      doOpen();
-    }
-  }
-
   function postBuild(type) {
-    if (type === 'vsvs')    setTimeout(startConflictAnimation, 100);
-    if (type === 'shatter') setTimeout(() => ShatterSoftly.init(), 80);
-    if (type === 'sound') {
-      const relieverOrb = document.getElementById('reliever-orb');
-      if (relieverOrb) {
-        let breathing = false;
-        relieverOrb.addEventListener('click', () => {
-          breathing = !breathing;
-          relieverOrb.style.animationPlayState = breathing ? 'running' : 'paused';
-          if (breathing) {
-            relieverOrb.style.boxShadow = '0 0 32px rgba(201,168,76,.3)';
-            setTimeout(() => { relieverOrb.style.boxShadow = ''; }, 2000);
-          }
-        });
-      }
-    }
+    if (type === 'vsvs')       setTimeout(startConflictAnimation, 100);
+    if (type === 'stressball') setTimeout(() => StressBall.init(), 50);
     if (type === 'receipt') {
-      const replayBtn = document.createElement('button');
-      replayBtn.className = 'ritual-ob-replay';
-      replayBtn.textContent = '? how to use';
-      replayBtn.addEventListener('click', () => showRitualOnboarding('receipt', () => {}));
-      content.appendChild(replayBtn);
       document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           receiptTheme = btn.dataset.theme;
@@ -3197,63 +2807,9 @@ const Rituals = (() => {
       document.getElementById('receipt-download-btn')?.addEventListener('click', downloadReceipt);
       document.getElementById('receipt-share-btn')?.addEventListener('click', shareReceipt);
     }
-    // Add replay button to all rituals
-    if (['dna','crash','sound','shatter','vsvs'].includes(type)) {
-      const replayBtn = document.createElement('button');
-      replayBtn.className = 'ritual-ob-replay';
-      replayBtn.style.cssText='display:block;margin:14px auto 0;';
-      replayBtn.textContent = '? how to use';
-      replayBtn.addEventListener('click', () => showRitualOnboarding(type, () => {}));
-      content.appendChild(replayBtn);
-    }
   }
 
   function close() { modal.classList.remove('open'); }
-
-  /* Character image pool */
-  const CHAR_IMGS = [
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894015/IMG-20260423-WA0059_bz1ohb.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894015/IMG-20260423-WA0060_pifgne.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894022/IMG-20260423-WA0050_tae532.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894023/IMG-20260423-WA0051_c6weox.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894023/IMG-20260423-WA0048_wa1llc.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894024/IMG-20260423-WA0046_wvwgih.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894023/IMG-20260423-WA0047_pvaiyt.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894028/IMG-20260423-WA0039_kgdhkf.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894036/IMG-20260423-WA0030_jgq4fu.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894035/IMG-20260423-WA0029_grxw4f.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894039/IMG-20260423-WA0027_ebzfqh.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894040/IMG-20260423-WA0023_hcoixa.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894040/IMG-20260423-WA0024_ydfk93.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894044/IMG-20260423-WA0020_zub07i.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894045/IMG-20260423-WA0018_qibyfe.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894045/IMG-20260423-WA0016_nnwwed.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894046/IMG-20260423-WA0013_pvaura.jpg",
-    "https://res.cloudinary.com/dg4vourvl/image/upload/v1776894049/IMG-20260423-WA0014_kqoquc.jpg"
-  ];
-
-  function pickCharImgs() {
-    const pool = [...CHAR_IMGS];
-    const count = Math.random() < 0.5 ? 1 : 2;
-    const picked = [];
-    for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * pool.length);
-      picked.push(pool.splice(idx, 1)[0]);
-    }
-    return picked;
-  }
-
-  function buildCharImgHTML(imgs) {
-    if (!imgs.length) return '';
-    const positions = ['pos-tr', 'pos-br', 'pos-bl'];
-    // always place first at top-right, second (if any) at bottom-left
-    const placements = [positions[0], positions[2]];
-    return imgs.map((src, i) => {
-      const posClass = placements[i] || positions[1];
-      const smallClass = i === 1 ? ' small' : '';
-      return `<img class="receipt-char-img ${posClass}${smallClass}" src="${src}" alt="" aria-hidden="true" crossorigin="anonymous">`;
-    }).join('');
-  }
 
   function buildReceiptCore() {
     const total    = state.echoes.length;
@@ -3262,12 +2818,20 @@ const Rituals = (() => {
     const mc = {}; state.echoes.forEach(e=>{ mc[e.mood]=(mc[e.mood]||0)+1; });
     const dominant = Object.entries(mc).sort((a,b)=>b[1]-a[1])[0];
     const now = new Date();
-    const charImgs = pickCharImgs();
-    const charImgHTML = buildCharImgHTML(charImgs);
 
-    return `<div class="receipt ${receiptTheme}" id="receipt-el" style="position:relative">
+    // Decorative character based on theme
+    const chars = {
+      classic: '🐱',
+      dreamy:  '🌸',
+      'dark-minimal': '🕷',
+      romantic:'💌'
+    };
+    const char = chars[receiptTheme] || '✦';
+
+    return `<div class="receipt ${receiptTheme}" id="receipt-el">
       <div class="receipt-paper">
         <div class="receipt-header">
+          <div class="receipt-char" aria-hidden="true">${char}</div>
           <div class="receipt-store">ECHOVAULT™</div>
           <div class="receipt-tagline">Emotional Surplus Store · Est. Today</div>
         </div>
@@ -3283,16 +2847,15 @@ const Rituals = (() => {
         <div class="receipt-barcode">|||||||||||||||||||||||||||</div>
         <div class="receipt-footer">Thank you for feeling.<br>${now.toLocaleDateString()} · ${now.toLocaleTimeString()}<br><br>Returns not accepted. Growth is final.</div>
       </div>
-      ${charImgHTML}
     </div>`;
   }
 
   function buildReceipt() {
     const themes = [
-      {id:'classic',label:'Classic'},
-      {id:'dreamy',label:'Dreamy'},
-      {id:'dark-minimal',label:'Dark'},
-      {id:'romantic',label:'Romantic'}
+      {id:'classic',label:'Classic 🐱'},
+      {id:'dreamy',label:'Dreamy 🌸'},
+      {id:'dark-minimal',label:'Dark 🕷'},
+      {id:'romantic',label:'Romantic 💌'}
     ];
     const themeBar = `<div class="receipt-themes">
       ${themes.map(t=>`<button class="theme-btn ${t.id===receiptTheme?'active':''}" data-theme="${t.id}">${t.label}</button>`).join('')}
@@ -3300,79 +2863,37 @@ const Rituals = (() => {
     return `${themeBar}
     <div class="receipt-main-area">${buildReceiptCore()}</div>
     <div class="receipt-actions">
-      <button class="receipt-action-btn" id="receipt-download-btn">⬇ Save Image</button>
+      <button class="receipt-action-btn" id="receipt-download-btn">⬇ Download</button>
       <button class="receipt-action-btn" id="receipt-share-btn">↗ Share</button>
     </div>`;
   }
 
-  function loadHtml2Canvas() {
-    return new Promise((resolve, reject) => {
-      if (window.html2canvas) { resolve(window.html2canvas); return; }
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-      s.onload  = () => resolve(window.html2canvas);
-      s.onerror = () => reject(new Error('Failed to load html2canvas'));
-      document.head.appendChild(s);
-    });
-  }
-
-  async function captureReceiptImage() {
-    const el = document.getElementById('receipt-el');
-    if (!el) throw new Error('No receipt element');
-    const h2c = await loadHtml2Canvas();
-    const canvas = await h2c(el, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      backgroundColor: null,
-      logging: false,
-      removeContainer: true
-    });
-    return canvas;
-  }
-
   async function downloadReceipt() {
     try {
-      Toast.show('Preparing image…');
-      const canvas = await captureReceiptImage();
-      const url = canvas.toDataURL('image/png');
+      const el = document.getElementById('receipt-el');
+      if (!el) return;
+      Toast.show('Preparing receipt…');
+      // Fallback: copy text
+      const text = el.innerText;
+      const blob = new Blob([text], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'mood-receipt.png';
-      a.click();
-      Toast.show('Receipt saved ✓');
-    } catch(e) {
-      Toast.show('Download failed — try again');
-    }
+      a.href=url; a.download='mood-receipt.txt'; a.click();
+      URL.revokeObjectURL(url);
+      Toast.show('Receipt downloaded ✓');
+    } catch(e) { Toast.show('Download failed'); }
   }
 
   async function shareReceipt() {
-    try {
-      Toast.show('Preparing image…');
-      const canvas = await captureReceiptImage();
-      canvas.toBlob(async (blob) => {
-        if (!blob) { Toast.show('Could not create image'); return; }
-        const file = new File([blob], 'mood-receipt.png', {type:'image/png'});
-        if (navigator.share && navigator.canShare && navigator.canShare({files:[file]})) {
-          try {
-            await navigator.share({title:'My EchoVault Mood Receipt', files:[file]});
-          } catch(e) {
-            if (e.name !== 'AbortError') fallbackDownload(canvas);
-          }
-        } else {
-          fallbackDownload(canvas);
-        }
-      }, 'image/png');
-    } catch(e) {
-      Toast.show('Share failed — saving instead');
+    const el = document.getElementById('receipt-el');
+    if (!el) return;
+    const text = `My EchoVault Mood Receipt\n${el.innerText}`;
+    if (navigator.share) {
+      try { await navigator.share({title:'My Mood Receipt', text}); }
+      catch(e) {}
+    } else {
+      navigator.clipboard?.writeText(text).then(() => Toast.show('Copied to clipboard ✓'));
     }
-  }
-
-  function fallbackDownload(canvas) {
-    const url = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = url; a.download = 'mood-receipt.png'; a.click();
-    Toast.show('Saved as image ✓');
   }
 
   function buildDNA() {
@@ -3429,32 +2950,19 @@ const Rituals = (() => {
     const tracks = SOUNDPRINTS[mood] || SOUNDPRINTS.reflective;
     const color  = MOOD_COLORS[mood];
     const coverEmoji = MOOD_COVER_EMOJI[mood] || '🎵';
-
-    const relieverMessages = {
-      calm:'You carried your stillness here. Stay a moment longer.',
-      chaos:'The noise needed somewhere to go. Let this hold it.',
-      reflective:'The quiet inside deserves this kind of company.',
-      anxious:"Breathe with this. You don't have to solve anything right now.",
-      joyful:'Some feelings deserve to be heard out loud.',
-      empty:'Even the void has a sound. This is yours.'
-    };
-    const relieverEmojis = {calm:'🌊',chaos:'⚡',reflective:'🌙',anxious:'🫁',joyful:'🌸',empty:'◯'};
-
     return `<div class="soundprint-card">
       <div class="soundprint-title">Echo Soundprint</div>
-      <div class="soundprint-sub">Resonating with your ${MOOD_EMOJIS[mood]} <strong style="color:var(--text);font-style:normal">${mood}</strong> frequency</div>
+      <div class="soundprint-sub">Resonating with your ${MOOD_EMOJIS[mood]} ${mood} frequency</div>
       <div class="track-list">${tracks.map((t,i)=>`
         <div class="track-item">
-          <div class="track-cover" style="background:linear-gradient(135deg,${color}55,${color}1a)">
+          <div class="track-cover" style="background:${color}22">
             <div class="track-cover-glow" style="background:${color}"></div>
             <div class="track-cover-emoji">${coverEmoji}</div>
           </div>
           <div class="track-body">
-            <div>
-              <div class="track-num">0${i+1}</div>
-              <div class="track-song">${t.song}</div>
-              <div class="track-artist">${t.artist}</div>
-            </div>
+            <div class="track-num">0${i+1}</div>
+            <div class="track-song">${t.song}</div>
+            <div class="track-artist">${t.artist}</div>
             <div class="track-reason">${t.reason}</div>
             <div class="track-links">
               <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer">Spotify</a>
@@ -3463,32 +2971,11 @@ const Rituals = (() => {
           </div>
         </div>`).join('')}
       </div>
-      <div class="soundprint-reliever">
-        <div class="reliever-label">✦ a moment for you</div>
-        <div class="reliever-text">${relieverMessages[mood] || relieverMessages.reflective}</div>
-        <div class="reliever-breath" id="reliever-orb" role="button" aria-label="Breathing orb — tap and breathe">
-          <div class="reliever-breath-ring"></div>
-          ${relieverEmojis[mood] || '◯'}
-        </div>
-        <div class="reliever-breath-hint">tap · breathe · release</div>
-      </div>
     </div>`;
   }
 
-  function buildShatter() {
-    return `<div class="shatter-stage">
-      <div class="shatter-title">Shatter Softly</div>
-      <div class="shatter-sub">A quiet ceremony of release.<br>Tap to begin cracking the surface.</div>
-      <div class="shatter-canvas-wrap">
-        <canvas id="shatter-canvas" width="240" height="240" aria-label="Shatter surface — tap to crack"></canvas>
-      </div>
-      <div class="shatter-hint" id="shatter-hint">tap gently to begin</div>
-      <div class="shatter-aftermath" id="shatter-aftermath">
-        <div class="shatter-release-line">"you didn't need<br>to carry that"</div>
-        <div class="shatter-song-suggestion" id="shatter-song-here"></div>
-        <button class="shatter-back" id="shatter-reset-btn">← begin again</button>
-      </div>
-    </div>`;
+  function buildStressBall() {
+    return StressBall.buildHTML();
   }
 
   function buildConflict() {
