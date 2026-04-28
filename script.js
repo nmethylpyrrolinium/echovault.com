@@ -139,7 +139,14 @@ const Nav = (() => {
   views.forEach(v => {
     navBtns[v] = document.getElementById('nav-' + v);
     viewEls[v] = document.getElementById('view-' + v);
-    if (navBtns[v]) navBtns[v].addEventListener('click', () => show(v));
+    if (navBtns[v]) {
+      navBtns[v].addEventListener('click', () => {
+        show(v);
+        if (v === 'wrapped' && typeof CinematicWrapped !== 'undefined' && CinematicWrapped?.open) {
+          CinematicWrapped.open();
+        }
+      });
+    }
   });
   function show(name) {
     views.forEach(v => {
