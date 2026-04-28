@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EchoVault — Emotion Wrapped Cinematic</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400&family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── DESIGN TOKENS (matches EchoVault) ── */
+:root {
+  --void:#050508;--gold:#c9a84c;--gold-dim:rgba(201,168,76,.35);
+  --muted:rgba(255,255,255,.65);--text:rgba(255,255,255,.97);
+  --calm:#5b8fa8;--chaos:#c44b4b;--reflective:#7c6fa0;
+  --anxious:#c47a3a;--joyful:#7aab6e;--empty:#4a4a5a;
+  --font-display:'Cinzel Decorative',serif;
+  --font-body:'Cormorant Garamond',serif;
+  --font-mono:'DM Mono',monospace;
+  --font-editorial:'Playfair Display',serif;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#000}
+body{font-family:var(--font-body)}
+
+/* ── MAIN STAGE ── */
+#wrapped-stage {
+  position:fixed;inset:0;z-index:500;
+  background:#000;overflow:hidden;
+}
+
+/* Three.js canvas */
+#wrapped-3d-canvas {
+  position:absolute;inset:0;z-index:0;
+}
+
+/* ── UI OVERLAY ── */
+#wrapped-ui {
+  position:absolute;inset:0;z-index:10;
+  pointer-events:none;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+
+/* ── SCENE CARDS ── */
+.scene-card {
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:40px 24px;
+  opacity:0;pointer-events:none;
+  transition:opacity 1.2s var(--ease);
+}
+.scene-card.active {
+  opacity:1;pointer-events:all;
+}
+
+/* SCENE 1 — Emotional Sky */
+.sky-eyebrow {
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.4em;
+  color:var(--gold);text-transform:uppercase;margin-bottom:32px;
+  animation:floatUp 1.2s var(--ease) both;
+}
+.sky-headline {
+  font-family:var(--font-display);font-size:clamp(22px,5vw,48px);
+  color:rgba(255,255,255,.92);letter-spacing:.06em;line-height:1.15;
+  margin-bottom:18px;
+  animation:floatUp 1.2s .15s var(--ease) both;
+}
+.sky-sub {
+  font-size:clamp(14px,2.5vw,19px);font-style:italic;
+  color:var(--muted);line-height:1.75;max-width:420px;
+  animation:floatUp 1.2s .28s var(--ease) both;
+}
+.mood-glyph {
+  font-size:clamp(48px,10vw,88px);margin-bottom:24px;
+  animation:floatUp 1.2s .05s var(--ease) both;
+  filter:drop-shadow(0 0 40px currentColor);
+}
+
+/* SCENE 2 — Core Orb */
+.core-wrap {
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:28px;
+}
+.orb-label-above {
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.32em;
+  text-transform:uppercase;color:var(--gold);opacity:.75;
+  animation:floatUp 1s var(--ease) both;
+}
+#core-canvas-wrap {
+  position:relative;width:180px;height:180px;
+  animation:floatUp 1s .12s var(--ease) both;
+}
+.orb-rings {
+  position:absolute;inset:-40px;border-radius:50%;
+  background:transparent;pointer-events:none;
+}
+.core-name {
+  font-family:var(--font-editorial);font-size:clamp(24px,4vw,38px);
+  color:var(--text);margin-bottom:8px;
+  animation:floatUp 1s .22s var(--ease) both;
+}
+.core-archetype {
+  font-size:clamp(13px,2vw,16px);font-style:italic;color:var(--muted);
+  max-width:360px;line-height:1.7;
+  animation:floatUp 1s .32s var(--ease) both;
+}
+
+/* SCENE 3 — Identity */
+.identity-title {
+  font-family:var(--font-display);font-size:clamp(16px,3.5vw,28px);
+  color:var(--gold);letter-spacing:.1em;margin-bottom:24px;
+  animation:floatUp 1s var(--ease) both;
+}
+.identity-bars {
+  width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px;
+  animation:floatUp 1s .15s var(--ease) both;
+}
+.id-bar {
+  display:flex;align-items:center;gap:14px;
+}
+.id-bar-name {
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);width:78px;text-align:right;flex-shrink:0;
+}
+.id-bar-track {
+  flex:1;height:4px;background:rgba(255,255,255,.08);
+  border-radius:4px;overflow:hidden;
+}
+.id-bar-fill {
+  height:100%;border-radius:4px;
+  transform:scaleX(0);transform-origin:left;
+  transition:transform 1.4s var(--ease);
+}
+.id-bar-pct {
+  font-family:var(--font-mono);font-size:9px;color:var(--gold);
+  width:32px;flex-shrink:0;
+}
+.id-stat-row {
+  display:flex;gap:28px;margin-top:32px;
+  animation:floatUp 1s .3s var(--ease) both;
+}
+.id-stat {
+  text-align:center;
+}
+.id-stat-val {
+  font-family:var(--font-editorial);font-size:32px;color:var(--gold);
+}
+.id-stat-label {
+  font-family:var(--font-mono);font-size:9px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.12em;margin-top:3px;
+}
+
+/* SCENE 4 — Soundtrack */
+.sound-title {
+  font-family:var(--font-display);font-size:clamp(14px,3vw,24px);
+  color:var(--gold);letter-spacing:.1em;margin-bottom:32px;
+  animation:floatUp 1s var(--ease) both;
+}
+.track-cards {
+  display:flex;flex-direction:column;gap:14px;width:100%;max-width:460px;
+  animation:floatUp 1s .12s var(--ease) both;
+}
+.track-card {
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:10px;padding:16px;display:flex;gap:14px;align-items:center;
+  transition:background .3s,border-color .3s,transform .4s var(--ease);
+  cursor:pointer;pointer-events:all;
+}
+.track-card:hover {
+  background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2);
+  transform:translateX(6px);
+}
+.track-card-cover {
+  width:52px;height:52px;border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  position:relative;overflow:hidden;
+}
+.track-card-body { flex:1;min-width:0; }
+.track-card-num {
+  font-family:var(--font-mono);font-size:9px;color:var(--gold);
+  margin-bottom:2px;opacity:.7;
+}
+.track-card-song {
+  font-size:15px;color:var(--text);font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-bottom:2px;
+}
+.track-card-artist {
+  font-family:var(--font-mono);font-size:9px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;
+}
+.track-card-links {
+  display:flex;gap:6px;
+}
+.tc-link {
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 10px;border-radius:14px;font-family:var(--font-mono);
+  font-size:8px;text-decoration:none;letter-spacing:.08em;
+  transition:all .2s;border:1px solid;
+}
+.tc-link.sp { color:#1db954;border-color:rgba(29,185,84,.4);background:rgba(29,185,84,.08) }
+.tc-link.yt { color:#ff5555;border-color:rgba(255,68,68,.35);background:rgba(255,68,68,.06) }
+.tc-link:hover { transform:translateY(-1px) }
+
+/* SCENE 5 — Final */
+.final-title {
+  font-family:var(--font-display);font-size:clamp(18px,4vw,36px);
+  color:var(--gold);letter-spacing:.08em;margin-bottom:16px;
+  animation:floatUp 1.2s var(--ease) both;
+}
+.final-sub {
+  font-size:clamp(15px,2.5vw,20px);font-style:italic;color:var(--muted);
+  max-width:400px;line-height:1.75;margin-bottom:48px;
+  animation:floatUp 1.2s .15s var(--ease) both;
+}
+.final-actions {
+  display:flex;gap:12px;flex-wrap:wrap;justify-content:center;
+  animation:floatUp 1.2s .3s var(--ease) both;
+  pointer-events:all;
+}
+
+/* ── NAVIGATION ── */
+#wrapped-nav {
+  position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  z-index:20;display:flex;align-items:center;gap:20px;
+  pointer-events:all;
+}
+.wnav-dots {
+  display:flex;gap:8px;align-items:center;
+}
+.wnav-dot {
+  width:6px;height:6px;border-radius:50%;
+  background:rgba(255,255,255,.2);
+  transition:background .4s,transform .4s,width .4s;
+  cursor:pointer;
+}
+.wnav-dot.active {
+  background:var(--gold);width:18px;border-radius:3px;transform:none;
+}
+.wnav-btn {
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:var(--muted);padding:8px 18px;border-radius:20px;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;cursor:pointer;
+  transition:all .25s;
+}
+.wnav-btn:hover{color:var(--text);background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22)}
+.wnav-btn.gold{background:var(--gold);color:#000;border-color:var(--gold)}
+.wnav-btn.gold:hover{background:#d4b45a}
+
+/* ── CLOSE BTN ── */
+#wrapped-close {
+  position:absolute;top:20px;right:20px;z-index:30;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  color:var(--muted);width:36px;height:36px;border-radius:50%;
+  font-size:18px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;transition:all .25s;pointer-events:all;
+}
+#wrapped-close:hover{background:rgba(255,255,255,.14);color:var(--text)}
+
+/* ── PERIOD PILL ── */
+#wrapped-period-pill {
+  position:absolute;top:20px;left:50%;transform:translateX(-50%);z-index:30;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;display:flex;overflow:hidden;
+  pointer-events:all;
+}
+.period-pill-btn {
+  background:none;border:none;color:var(--muted);padding:6px 16px;
+  font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;
+  text-transform:uppercase;cursor:pointer;transition:all .25s;
+}
+.period-pill-btn.active { background:var(--gold);color:#000 }
+
+/* ── PROGRESS LINE ── */
+#wrapped-progress {
+  position:absolute;top:0;left:0;height:2px;z-index:30;
+  background:linear-gradient(to right,var(--gold),rgba(201,168,76,.4));
+  transition:width .8s var(--ease);pointer-events:none;
+}
+
+/* ── BUTTONS ── */
+.btn-cinematic-primary {
+  background:var(--gold);color:#000;border:none;
+  padding:13px 34px;font-family:var(--font-mono);font-size:10px;
+  letter-spacing:.18em;text-transform:uppercase;border-radius:3px;
+  cursor:pointer;transition:all .3s;font-weight:500;
+}
+.btn-cinematic-primary:hover{background:#d4b45a;transform:translateY(-2px)}
+.btn-cinematic-ghost {
+  background:transparent;color:var(--text);
+  border:1px solid rgba(255,255,255,.2);padding:13px 34px;
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;border-radius:3px;cursor:pointer;
+  transition:all .3s;
+}
+.btn-cinematic-ghost:hover{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.05)}
+
+/* ── DEPTH FOG ── */
+.depth-fog {
+  position:absolute;inset:0;z-index:5;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 30%,rgba(5,5,8,.6) 100%);
+}
+
+/* ── VIGNETTE ── */
+.vignette {
+  position:absolute;inset:0;z-index:6;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(0,0,0,.7) 100%);
+}
+
+/* ── TRANSITION WIPE ── */
+#scene-wipe {
+  position:absolute;inset:0;z-index:50;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,rgba(201,168,76,.06),rgba(5,5,8,1));
+  opacity:0;transition:opacity .6s;
+}
+#scene-wipe.flashing { opacity:1 }
+
+/* ── ANIMATIONS ── */
+@keyframes floatUp {
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pulse3d {
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.06)}
+}
+@keyframes orbSpin {
+  from{transform:rotate(0deg)}
+  to{transform:rotate(360deg)}
+}
+
+/* ── NO ECHOES FALLBACK ── */
+#wrapped-empty-3d {
+  position:absolute;inset:0;z-index:10;
+  display:none;align-items:center;justify-content:center;
+  flex-direction:column;text-align:center;padding:40px;
+}
+#wrapped-empty-3d.show{display:flex}
+.empty-3d-icon{font-size:64px;margin-bottom:24px;opacity:.4}
+.empty-3d-title{font-family:var(--font-display);font-size:24px;color:rgba(255,255,255,.5);
+  letter-spacing:.06em;margin-bottom:10px}
+.empty-3d-sub{font-size:16px;font-style:italic;color:rgba(255,255,255,.25)}
+
+/* ── LOADING ── */
+#wrapped-loading {
+  position:absolute;inset:0;z-index:80;
+  background:#000;display:flex;align-items:center;justify-content:center;
+  transition:opacity .8s;
+}
+#wrapped-loading.done{opacity:0;pointer-events:none}
+.loading-orb {
+  width:48px;height:48px;border-radius:50%;
+  background:radial-gradient(circle at 38% 32%,rgba(201,168,76,.8),rgba(201,168,76,.2));
+  animation:pulse3d 1.8s ease-in-out infinite;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:600px){
+  .id-bar-name{width:60px;font-size:8px}
+  .track-card{padding:12px}
+  .track-card-cover{width:44px;height:44px;font-size:20px}
+  #wrapped-nav{bottom:24px;gap:14px}
+}
+</style>
+</head>
+<body>
+
+<div id="wrapped-stage">
+  <!-- 3D Canvas -->
+  <canvas id="wrapped-3d-canvas"></canvas>
+
+  <!-- Loading -->
+  <div id="wrapped-loading">
+    <div class="loading-orb"></div>
+  </div>
+
+  <!-- Depth layers -->
+  <div class="depth-fog"></div>
+  <div class="vignette"></div>
+
+  <!-- Scene Wipe -->
+  <div id="scene-wipe"></div>
+
+  <!-- Period Selector -->
+  <div id="wrapped-period-pill">
+    <button class="period-pill-btn active" data-period="week">Week</button>
+    <button class="period-pill-btn" data-period="month">Month</button>
+    <button class="period-pill-btn" data-period="all">All Time</button>
+  </div>
+
+  <!-- Close -->
+  <button id="wrapped-close" aria-label="Close">×</button>
+
+  <!-- Progress -->
+  <div id="wrapped-progress" style="width:0%"></div>
+
+  <!-- UI Overlay -->
+  <div id="wrapped-ui">
+
+    <!-- SCENE 1: Emotional Sky -->
+    <div class="scene-card active" id="sc-1">
+      <div id="sc1-glyph" class="mood-glyph">🌌</div>
+      <div class="sky-eyebrow">Your emotional season</div>
+      <div class="sky-headline" id="sc1-headline">You felt<br><em id="sc1-mood-word">everything</em></div>
+      <div class="sky-sub" id="sc1-sub">across <span id="sc1-count">0</span> echoes, your inner universe kept expanding.</div>
+    </div>
+
+    <!-- SCENE 2: Core Orb -->
+    <div class="scene-card" id="sc-2">
+      <div class="core-wrap">
+        <div class="orb-label-above">dominant resonance</div>
+        <div id="core-canvas-wrap">
+          <canvas id="core-canvas" width="180" height="180"></canvas>
+          <div class="orb-rings" id="orb-rings"></div>
+        </div>
+        <div>
+          <div class="core-name" id="sc2-archetype">The Still Lake</div>
+          <div class="core-archetype" id="sc2-desc">You carry stillness like a gift. People feel safer around you.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 3: Identity Formation -->
+    <div class="scene-card" id="sc-3">
+      <div class="identity-title">Your emotional composition</div>
+      <div class="identity-bars" id="sc3-bars"></div>
+      <div class="id-stat-row" id="sc3-stats">
+        <div class="id-stat">
+          <div class="id-stat-val" id="sc3-avg">—</div>
+          <div class="id-stat-label">avg intensity</div>
+        </div>
+        <div class="id-stat">
+          <div class="id-stat-val" id="sc3-chaos">—</div>
+          <div class="id-stat-label">turbulence</div>
+        </div>
+        <div class="id-stat">
+          <div class="id-stat-val" id="sc3-void">—</div>
+          <div class="id-stat-label">void entries</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE 4: Soundtrack Space -->
+    <div class="scene-card" id="sc-4">
+      <div class="sound-title">Your frequency in sound</div>
+      <div class="track-cards" id="sc4-tracks"></div>
+    </div>
+
+    <!-- SCENE 5: Final -->
+    <div class="scene-card" id="sc-5">
+      <div class="final-title" id="sc5-title">You were here.<br>That matters.</div>
+      <div class="final-sub" id="sc5-sub">Every echo was real. Every silence had weight. This universe is yours.</div>
+      <div class="final-actions">
+        <button class="btn-cinematic-primary" id="btn-replay">↩ Replay</button>
+        <button class="btn-cinematic-ghost" id="btn-close-final">Close</button>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="wrapped-empty-3d">
+      <div class="empty-3d-icon">🌌</div>
+      <div class="empty-3d-title">No echoes yet</div>
+      <div class="empty-3d-sub">Create some echoes to begin your cinematic wrapped.</div>
+    </div>
+
+  </div><!-- /wrapped-ui -->
+
+  <!-- Navigation -->
+  <div id="wrapped-nav">
+    <button class="wnav-btn" id="wnav-prev">←</button>
+    <div class="wnav-dots" id="wnav-dots">
+      <div class="wnav-dot active"></div>
+      <div class="wnav-dot"></div>
+      <div class="wnav-dot"></div>
+      <div class="wnav-dot"></div>
+      <div class="wnav-dot"></div>
+    </div>
+    <button class="wnav-btn gold" id="wnav-next">Next →</button>
+  </div>
+
+</div><!-- /wrapped-stage -->
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+(function WrappedCinematic() {
+'use strict';
+
+/* ── DATA (from parent EchoVault or demo) ── */
+const MOOD_COLORS = {
+  calm:'#5b8fa8', chaos:'#c44b4b', reflective:'#7c6fa0',
+  anxious:'#c47a3a', joyful:'#7aab6e', empty:'#4a4a5a'
+};
+const MOOD_EMOJIS = {
+  calm:'🌊', chaos:'⚡', reflective:'🌙',
+  anxious:'🌀', joyful:'🌸', empty:'🪨'
+};
+const MOOD_COVER_EMOJI = {
+  calm:'🌊', chaos:'⚡', reflective:'🌙', anxious:'🌀', joyful:'🌸', empty:'🌑'
+};
+const ARCHETYPE_NAMES = {
+  calm:'The Still Lake', chaos:'The Electric Storm', reflective:'The Night Wanderer',
+  anxious:'The Trembling Compass', joyful:'The Blooming Field', empty:'The Quiet Abyss'
+};
+const ARCHETYPE_DESCS = {
+  calm:'You carry stillness like a gift. People feel safer around you.',
+  chaos:'You burn bright. The world feels your electricity.',
+  reflective:'You see depths others miss. The inner world is your true home.',
+  anxious:'You feel everything twice. That\'s not weakness — it\'s signal.',
+  joyful:'Something in you insists on light. Keep that.',
+  empty:'You\'ve been in the void. The void knows your name now.'
+};
+const SOUNDPRINTS = {
+  calm:[
+    {song:'Motion Picture Soundtrack',artist:'Radiohead',reason:'It drifts like you do right now.',spotify:'https://open.spotify.com/search/Motion%20Picture%20Soundtrack%20Radiohead',youtube:'https://www.youtube.com/results?search_query=Motion+Picture+Soundtrack+Radiohead'},
+    {song:'Holocene',artist:'Bon Iver',reason:'Feeling small, beautifully.',spotify:'https://open.spotify.com/search/Holocene%20Bon%20Iver',youtube:'https://www.youtube.com/results?search_query=Holocene+Bon+Iver'},
+    {song:'Gymnopédie No.1',artist:'Erik Satie',reason:'Pure stillness, distilled.',spotify:'https://open.spotify.com/search/Gymnopedie%20Satie',youtube:'https://www.youtube.com/results?search_query=Gymnopedie+Satie'}
+  ],
+  chaos:[
+    {song:'Idioteque',artist:'Radiohead',reason:'Controlled collapse. Beautiful and frantic.',spotify:'https://open.spotify.com/search/Idioteque%20Radiohead',youtube:'https://www.youtube.com/results?search_query=Idioteque+Radiohead'},
+    {song:'Running with the Wolves',artist:'Aurora',reason:'The electric sprint of feeling too much.',spotify:'https://open.spotify.com/search/Running%20with%20the%20Wolves%20Aurora',youtube:'https://www.youtube.com/results?search_query=Running+with+the+Wolves+Aurora'},
+    {song:'Violent Shaking',artist:'Arca',reason:'Chaos doesn\'t need to make sense.',spotify:'https://open.spotify.com/search/Arca',youtube:'https://www.youtube.com/results?search_query=Arca'}
+  ],
+  reflective:[
+    {song:'Skinny Love',artist:'Bon Iver',reason:'Archaeology of self.',spotify:'https://open.spotify.com/search/Skinny%20Love%20Bon%20Iver',youtube:'https://www.youtube.com/results?search_query=Skinny+Love+Bon+Iver'},
+    {song:'Silhouette',artist:'Aquilo',reason:'Memory wearing a coat of blue light.',spotify:'https://open.spotify.com/search/Silhouette%20Aquilo',youtube:'https://www.youtube.com/results?search_query=Silhouette+Aquilo'},
+    {song:'Lua',artist:'Bright Eyes',reason:'Honest. A little broken. Deeply awake.',spotify:'https://open.spotify.com/search/Lua%20Bright%20Eyes',youtube:'https://www.youtube.com/results?search_query=Lua+Bright+Eyes'}
+  ],
+  anxious:[
+    {song:'Portions for Foxes',artist:'Rilo Kiley',reason:'That restless frequency.',spotify:'https://open.spotify.com/search/Portions%20for%20Foxes',youtube:'https://www.youtube.com/results?search_query=Portions+for+Foxes+Rilo+Kiley'},
+    {song:'An Eagle in Your Mind',artist:'Boards of Canada',reason:'Worry as soundscape.',spotify:'https://open.spotify.com/search/Boards%20of%20Canada',youtube:'https://www.youtube.com/results?search_query=An+Eagle+in+Your+Mind+Boards+of+Canada'},
+    {song:'Dog Days Are Over',artist:'Florence + Machine',reason:'Panic and release in one breath.',spotify:'https://open.spotify.com/search/Dog%20Days%20Are%20Over',youtube:'https://www.youtube.com/results?search_query=Dog+Days+Are+Over+Florence+Machine'}
+  ],
+  joyful:[
+    {song:'Dog Days Are Over',artist:'Florence + Machine',reason:'Joy that runs and doesn\'t apologize.',spotify:'https://open.spotify.com/search/Dog%20Days%20Are%20Over',youtube:'https://www.youtube.com/results?search_query=Dog+Days+Are+Over+Florence+Machine'},
+    {song:'Sprawl II',artist:'Arcade Fire',reason:'Ecstasy as architecture.',spotify:'https://open.spotify.com/search/Sprawl%20II%20Arcade%20Fire',youtube:'https://www.youtube.com/results?search_query=Sprawl+II+Arcade+Fire'},
+    {song:"Can't Help Falling in Love",artist:'Kina Grannis',reason:'Gentle joy. The kind that stays.',spotify:'https://open.spotify.com/search/Kina%20Grannis%20Cant%20Help%20Falling',youtube:'https://www.youtube.com/results?search_query=Kina+Grannis+Cant+Help+Falling'}
+  ],
+  empty:[
+    {song:'Naked as We Came',artist:'Iron & Wine',reason:"Empty doesn't mean nothing.",spotify:'https://open.spotify.com/search/Naked%20as%20We%20Came',youtube:'https://www.youtube.com/results?search_query=Naked+as+We+Came+Iron+Wine'},
+    {song:'Street Spirit',artist:'Radiohead',reason:'The beautiful weight of going quiet.',spotify:'https://open.spotify.com/search/Street%20Spirit%20Radiohead',youtube:'https://www.youtube.com/results?search_query=Street+Spirit+Radiohead'},
+    {song:'The Night Will Always Win',artist:'Manchester Orchestra',reason:'When hollow has its own gravity.',spotify:'https://open.spotify.com/search/Manchester%20Orchestra',youtube:'https://www.youtube.com/results?search_query=The+Night+Will+Always+Win+Manchester+Orchestra'}
+  ]
+};
+
+/* ── LOAD ECHOES ── */
+let allEchoes = [];
+try {
+  const raw = localStorage.getItem('echovault_echoes_v2');
+  if (raw) allEchoes = JSON.parse(raw) || [];
+} catch(e) { allEchoes = []; }
+
+// Add rich demo data if empty
+if (!allEchoes.length) {
+  const moods = ['calm','reflective','joyful','anxious','chaos','empty','reflective','calm'];
+  const now = Date.now();
+  allEchoes = moods.map((m,i) => ({
+    id: now - i*86400000, mood: m,
+    intensity: 3 + Math.floor(Math.random()*7),
+    silence: 2 + Math.floor(Math.random()*7),
+    thought: i===0?'something was still today':i===2?'felt light for a moment':null,
+    void: i===5,
+    date: new Date(now - i*86400000).toISOString()
+  }));
+}
+
+let currentPeriod = 'week';
+let currentScene  = 0;
+const TOTAL_SCENES = 5;
+let data = null;
+
+/* ── COMPUTE DATA ── */
+function filterEchoes() {
+  const cutoff = currentPeriod==='week'?7*86400000:currentPeriod==='month'?30*86400000:Infinity;
+  return allEchoes.filter(e => Date.now()-new Date(e.date) < cutoff);
+}
+
+function computeData() {
+  const echoes = filterEchoes();
+  if (!echoes.length) return null;
+  const mc={},si={};
+  let totalInt=0;
+  echoes.forEach(e=>{mc[e.mood]=(mc[e.mood]||0)+1;totalInt+=e.intensity;});
+  const sorted=Object.entries(mc).sort((a,b)=>b[1]-a[1]);
+  const total=echoes.length;
+  const dom=sorted[0][0];
+  const avg=(totalInt/total).toFixed(1);
+  const chaos=Math.round(((mc.chaos||0)+(mc.anxious||0))/total*100);
+  const voidCnt=echoes.filter(e=>e.void).length;
+  return {echoes,sorted,total,dom,avg,chaos,voidCnt,mc};
+}
+
+/* ── THREE.JS SCENE ── */
+let renderer, scene, camera;
+let particlesMesh, particlesMesh2, particlesMesh3;
+let nebulaGroup, orbGroup;
+let animFrame, phase=0;
+let camTargetZ = 0, camCurrentZ = 0;
+let camTargetX = 0, camCurrentX = 0;
+let camTargetY = 0, camCurrentY = 0;
+
+const canvas3d = document.getElementById('wrapped-3d-canvas');
+
+function initThree() {
+  renderer = new THREE.WebGLRenderer({canvas:canvas3d,antialias:true,alpha:false});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.setClearColor(0x020206,1);
+
+  scene  = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(65,window.innerWidth/window.innerHeight,0.1,2000);
+  camera.position.set(0,0,80);
+
+  buildStarField();
+  buildNebula();
+  buildFloatingOrbs();
+
+  window.addEventListener('resize',onResize,{passive:true});
+  renderLoop();
+}
+
+function buildStarField() {
+  // 3 depth layers for parallax
+  const layers = [
+    {count:600,spread:600,size:0.5,speed:0.02,color:0x8899cc},
+    {count:300,spread:400,size:0.9,speed:0.04,color:0xaaaadd},
+    {count:120,spread:200,size:1.4,speed:0.07,color:0xc9a84c}
+  ];
+  layers.forEach((cfg,li)=>{
+    const geo  = new THREE.BufferGeometry();
+    const pos  = new Float32Array(cfg.count*3);
+    for(let i=0;i<cfg.count;i++){
+      pos[i*3]  =(Math.random()-.5)*cfg.spread;
+      pos[i*3+1]=(Math.random()-.5)*cfg.spread;
+      pos[i*3+2]=(Math.random()-.5)*cfg.spread*0.5;
+    }
+    geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+    const mat = new THREE.PointsMaterial({color:cfg.color,size:cfg.size,transparent:true,opacity:.7,sizeAttenuation:true});
+    const mesh = new THREE.Points(geo,mat);
+    mesh.userData={speed:cfg.speed,layer:li};
+    scene.add(mesh);
+    if(li===0) particlesMesh  = mesh;
+    else if(li===1) particlesMesh2 = mesh;
+    else particlesMesh3 = mesh;
+  });
+}
+
+function buildNebula() {
+  nebulaGroup = new THREE.Group();
+  scene.add(nebulaGroup);
+
+  const colors = [0x3a2060, 0x1a3050, 0x502020, 0x204040];
+  for(let i=0;i<8;i++){
+    const geo = new THREE.SphereGeometry(60+Math.random()*80,6,6);
+    const mat = new THREE.MeshBasicMaterial({
+      color:colors[i%colors.length],transparent:true,opacity:.06+Math.random()*.04,wireframe:false
+    });
+    const mesh = new THREE.Mesh(geo,mat);
+    mesh.position.set((Math.random()-.5)*300,(Math.random()-.5)*200,(Math.random()-.5)*200-150);
+    mesh.rotation.set(Math.random(),Math.random(),Math.random());
+    nebulaGroup.add(mesh);
+  }
+}
+
+function buildFloatingOrbs() {
+  orbGroup = new THREE.Group();
+  scene.add(orbGroup);
+}
+
+function updateOrbsForScene(scene_idx) {
+  while(orbGroup.children.length) orbGroup.remove(orbGroup.children[0]);
+  if(!data) return;
+
+  if(scene_idx === 0) {
+    // Scene 1: scattered mood orbs
+    data.sorted.forEach(([mood,count],i)=>{
+      const color = new THREE.Color(MOOD_COLORS[mood]);
+      const geo   = new THREE.SphereGeometry(3+count*1.5,12,12);
+      const mat   = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.5});
+      const mesh  = new THREE.Mesh(geo,mat);
+      const angle = (i/data.sorted.length)*Math.PI*2;
+      mesh.position.set(Math.cos(angle)*35,Math.sin(angle)*25,-20+Math.random()*10);
+      mesh.userData={drift:Math.random()*Math.PI*2,speed:0.003+Math.random()*.003};
+      orbGroup.add(mesh);
+      // Glow ring
+      const ringGeo = new THREE.TorusGeometry(4+count*1.5,0.4,6,24);
+      const ringMat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.2});
+      const ring    = new THREE.Mesh(ringGeo,ringMat);
+      ring.position.copy(mesh.position);
+      ring.rotation.x = Math.PI/3;
+      orbGroup.add(ring);
+    });
+  } else if(scene_idx === 1) {
+    // Scene 2: central core
+    const color = new THREE.Color(MOOD_COLORS[data.dom]);
+    for(let i=0;i<3;i++){
+      const geo = new THREE.SphereGeometry(14-i*3,24,24);
+      const mat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.12+i*.08,wireframe:i===2});
+      const mesh = new THREE.Mesh(geo,mat);
+      mesh.userData={rotSpeed:0.004+i*.003,axis:new THREE.Vector3(Math.random(),1,Math.random()).normalize()};
+      orbGroup.add(mesh);
+    }
+    // Orbiting particles
+    for(let i=0;i<40;i++){
+      const geo = new THREE.SphereGeometry(0.6+Math.random()*.8,6,6);
+      const mat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.5+Math.random()*.4});
+      const mesh = new THREE.Mesh(geo,mat);
+      const theta = Math.random()*Math.PI*2;
+      const phi   = Math.random()*Math.PI;
+      const r     = 22+Math.random()*16;
+      mesh.position.set(r*Math.sin(phi)*Math.cos(theta),r*Math.sin(phi)*Math.sin(theta),r*Math.cos(phi));
+      mesh.userData={orbAngle:theta,orbPhi:phi,orbR:r,orbSpeed:0.006+Math.random()*.006,orbAxis:Math.random()>.5?1:-1};
+      orbGroup.add(mesh);
+    }
+  } else if(scene_idx === 2) {
+    // Scene 3: fragments forming
+    for(let i=0;i<60;i++){
+      const mood = data.sorted[i%data.sorted.length][0];
+      const color = new THREE.Color(MOOD_COLORS[mood]);
+      const geo  = new THREE.TetrahedronGeometry(1+Math.random()*2,0);
+      const mat  = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.4+Math.random()*.4,wireframe:Math.random()>.6});
+      const mesh = new THREE.Mesh(geo,mat);
+      const angle = (i/60)*Math.PI*2;
+      const r    = 28+Math.random()*20;
+      mesh.position.set(Math.cos(angle)*r,Math.sin(angle)*r*0.6,(Math.random()-.5)*40);
+      mesh.userData={basePos:mesh.position.clone(),phase:Math.random()*Math.PI*2,speed:0.004+Math.random()*.003};
+      orbGroup.add(mesh);
+    }
+  } else if(scene_idx === 3) {
+    // Scene 4: floating track planes (3D cards in space)
+    const tracks = SOUNDPRINTS[data.dom] || SOUNDPRINTS.reflective;
+    const color  = new THREE.Color(MOOD_COLORS[data.dom]);
+    tracks.forEach((t,i)=>{
+      const planeGeo = new THREE.PlaneGeometry(22,14);
+      const planeMat = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.12,side:THREE.DoubleSide});
+      const plane = new THREE.Mesh(planeGeo,planeMat);
+      plane.position.set((i-1)*30,(Math.random()-.5)*8,-20+i*8);
+      plane.rotation.y = (i-1)*0.15;
+      plane.rotation.x = 0.05;
+      plane.userData={baseY:plane.position.y,phase:i*Math.PI*.66,speed:0.004};
+      orbGroup.add(plane);
+      // Edge glow
+      const edgeGeo = new THREE.EdgesGeometry(planeGeo);
+      const edgeMat = new THREE.LineBasicMaterial({color,transparent:true,opacity:.4});
+      const edge    = new THREE.LineSegments(edgeGeo,edgeMat);
+      edge.position.copy(plane.position);
+      edge.rotation.copy(plane.rotation);
+      orbGroup.add(edge);
+    });
+  } else if(scene_idx === 4) {
+    // Scene 5: all moods together, dispersing
+    data.sorted.forEach(([mood,count],i)=>{
+      const color = new THREE.Color(MOOD_COLORS[mood]);
+      for(let k=0;k<Math.min(count,8);k++){
+        const geo  = new THREE.SphereGeometry(2+Math.random()*3,8,8);
+        const mat  = new THREE.MeshBasicMaterial({color,transparent:true,opacity:.35+Math.random()*.3});
+        const mesh = new THREE.Mesh(geo,mat);
+        const a    = Math.random()*Math.PI*2;
+        const r    = 20+Math.random()*50;
+        mesh.position.set(Math.cos(a)*r,(Math.random()-.5)*40,(Math.random()-.5)*60);
+        mesh.userData={drift:a,speed:0.002+Math.random()*.003,r,rising:Math.random()-.5};
+        orbGroup.add(mesh);
+      }
+    });
+  }
+}
+
+const SCENE_CAMERA = [
+  {z:80,x:0,y:0},    // Scene 1: wide view
+  {z:50,x:0,y:0},    // Scene 2: closer to orb
+  {z:65,x:5,y:-3},   // Scene 3: slight angle
+  {z:60,x:-4,y:2},   // Scene 4: track planes
+  {z:90,x:0,y:-5},   // Scene 5: pulling back
+];
+
+function setCameraForScene(idx) {
+  const cfg = SCENE_CAMERA[idx] || SCENE_CAMERA[0];
+  camTargetZ = cfg.z; camTargetX = cfg.x; camTargetY = cfg.y;
+}
+
+function renderLoop() {
+  animFrame = requestAnimationFrame(renderLoop);
+  if(!renderer) return;
+  phase += 0.006;
+
+  // Smooth camera
+  camCurrentZ += (camTargetZ - camCurrentZ) * 0.03;
+  camCurrentX += (camTargetX - camCurrentX) * 0.03;
+  camCurrentY += (camTargetY - camCurrentY) * 0.03;
+  camera.position.z = camCurrentZ;
+  camera.position.x = camCurrentX + Math.sin(phase*0.3)*1.5;
+  camera.position.y = camCurrentY + Math.cos(phase*0.2)*1.2;
+
+  // Parallax star layers
+  if(particlesMesh)  particlesMesh.rotation.y  = phase * 0.012;
+  if(particlesMesh2) particlesMesh2.rotation.y = phase * 0.022;
+  if(particlesMesh3) particlesMesh3.rotation.y = phase * 0.038;
+  if(particlesMesh)  particlesMesh.rotation.x  = phase * 0.006;
+
+  // Nebula slow drift
+  if(nebulaGroup) nebulaGroup.rotation.y = phase * 0.004;
+
+  // Animate orbs
+  orbGroup.children.forEach((obj,oi)=>{
+    const ud = obj.userData;
+    if(ud.drift !== undefined && ud.r !== undefined) {
+      // floating sphere
+      ud.drift += ud.speed||.002;
+      obj.position.x = Math.cos(ud.drift)*ud.r;
+      if(ud.rising) obj.position.y += ud.rising*0.01;
+    }
+    if(ud.rotSpeed && ud.axis) {
+      obj.rotateOnAxis(ud.axis,ud.rotSpeed);
+    }
+    if(ud.orbAngle !== undefined) {
+      ud.orbAngle += ud.orbSpeed * ud.orbAxis;
+      const r=ud.orbR, phi=ud.orbPhi+phase*0.003;
+      obj.position.set(
+        r*Math.sin(phi)*Math.cos(ud.orbAngle),
+        r*Math.sin(phi)*Math.sin(ud.orbAngle),
+        r*Math.cos(phi)
+      );
+    }
+    if(ud.phase !== undefined && ud.basePos) {
+      const t=phase+ud.phase;
+      obj.position.y=ud.basePos.y+Math.sin(t)*3;
+      obj.position.x=ud.basePos.x+Math.cos(t*0.7)*2;
+      obj.rotation.x+=0.008; obj.rotation.y+=0.006;
+    }
+    if(ud.phase !== undefined && ud.baseY !== undefined) {
+      obj.position.y=ud.baseY+Math.sin(phase+ud.phase)*2;
+    }
+  });
+
+  renderer.render(scene,camera);
+}
+
+function onResize() {
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+}
+
+/* ── 2D CORE ORB CANVAS ── */
+function drawCoreOrb() {
+  if(!data) return;
+  const canvas = document.getElementById('core-canvas');
+  const ctx    = canvas.getContext('2d');
+  const w=180,h=180,cx=90,cy=90;
+  const color  = MOOD_COLORS[data.dom];
+  let angle    = 0;
+
+  function frame() {
+    if(currentScene !== 1) return;
+    ctx.clearRect(0,0,w,h);
+    angle += 0.008;
+
+    // Outer halo rings
+    for(let i=0;i<4;i++){
+      const r   = 38+i*12+Math.sin(angle+i)*5;
+      const a   = (0.18-i*0.04)*Math.abs(Math.sin(angle*0.5+i));
+      const grd = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+      grd.addColorStop(0,'transparent');
+      grd.addColorStop(0.7,color+Math.floor(a*255).toString(16).padStart(2,'0'));
+      grd.addColorStop(1,'transparent');
+      ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+      ctx.fillStyle=grd; ctx.fill();
+    }
+
+    // Core
+    const pulse = 28+Math.sin(angle)*5;
+    const cg = ctx.createRadialGradient(cx-10,cy-12,0,cx,cy,pulse);
+    cg.addColorStop(0,color+'ff');
+    cg.addColorStop(0.5,color+'aa');
+    cg.addColorStop(1,color+'00');
+    ctx.beginPath(); ctx.arc(cx,cy,pulse,0,Math.PI*2);
+    ctx.fillStyle=cg; ctx.fill();
+
+    // Orbiting particles
+    for(let i=0;i<8;i++){
+      const a2   = angle*1.2 + (i/8)*Math.PI*2;
+      const r2   = 44+Math.sin(angle+i)*6;
+      const px   = cx+Math.cos(a2)*r2;
+      const py   = cy+Math.sin(a2)*r2*0.7;
+      const size = 2+Math.sin(angle*2+i)*0.8;
+      ctx.beginPath(); ctx.arc(px,py,size,0,Math.PI*2);
+      ctx.fillStyle=color+'bb'; ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+/* ── POPULATE SCENES ── */
+function populateScenes() {
+  if(!data) {
+    document.getElementById('wrapped-empty-3d').classList.add('show');
+    document.getElementById('wrapped-nav').style.display='none';
+    return;
+  }
+
+  const dom = data.dom;
+  const domColor = MOOD_COLORS[dom];
+
+  // Scene 1
+  document.getElementById('sc1-glyph').textContent = MOOD_EMOJIS[dom]||'🌌';
+  document.getElementById('sc1-headline').innerHTML = `You felt<br><em style="color:${domColor}">${dom}</em>`;
+  document.getElementById('sc1-count').textContent  = data.total;
+
+  // Scene 2
+  document.getElementById('sc2-archetype').textContent = ARCHETYPE_NAMES[dom]||'The Unknown';
+  document.getElementById('sc2-desc').textContent       = ARCHETYPE_DESCS[dom]||'Still becoming.';
+
+  // Scene 3
+  const barsEl = document.getElementById('sc3-bars');
+  barsEl.innerHTML = '';
+  data.sorted.slice(0,5).forEach(([mood,count])=>{
+    const pct = Math.round(count/data.total*100);
+    const bar = document.createElement('div');
+    bar.className='id-bar';
+    bar.innerHTML=`
+      <div class="id-bar-name">${mood}</div>
+      <div class="id-bar-track"><div class="id-bar-fill" style="background:${MOOD_COLORS[mood]};width:${pct}%" data-pct="${pct}"></div></div>
+      <div class="id-bar-pct">${pct}%</div>`;
+    barsEl.appendChild(bar);
+  });
+  document.getElementById('sc3-avg').textContent  = data.avg;
+  document.getElementById('sc3-chaos').textContent = data.chaos+'%';
+  document.getElementById('sc3-void').textContent  = data.voidCnt;
+
+  // Scene 4
+  const tracks = (SOUNDPRINTS[dom]||SOUNDPRINTS.reflective).slice(0,3);
+  const tracksEl = document.getElementById('sc4-tracks');
+  tracksEl.innerHTML='';
+  tracks.forEach((t,i)=>{
+    const el=document.createElement('div');
+    el.className='track-card';
+    el.innerHTML=`
+      <div class="track-card-cover" style="background:linear-gradient(135deg,${domColor}55,${domColor}18)">
+        <span style="position:relative;z-index:2">${MOOD_COVER_EMOJI[dom]||'🎵'}</span>
+      </div>
+      <div class="track-card-body">
+        <div>
+          <div class="track-card-num">0${i+1}</div>
+          <div class="track-card-song">${t.song}</div>
+          <div class="track-card-artist">${t.artist}</div>
+        </div>
+        <div class="track-card-links">
+          <a class="tc-link sp" href="${t.spotify}" target="_blank" rel="noopener noreferrer">▶ Spotify</a>
+          <a class="tc-link yt" href="${t.youtube}" target="_blank" rel="noopener noreferrer">▶ YouTube</a>
+        </div>
+      </div>`;
+    tracksEl.appendChild(el);
+  });
+
+  // Scene 5
+  const finalLines = {
+    calm:'You moved gently. That takes its own kind of strength.',
+    chaos:'You burned. You\'re still here. The universe noticed.',
+    reflective:'You looked inward more than most ever dare.',
+    anxious:'You felt it all and didn\'t disappear. That\'s everything.',
+    joyful:'You kept finding light. Don\'t stop.',
+    empty:'The quiet was real. So were you.'
+  };
+  document.getElementById('sc5-sub').textContent = finalLines[dom]||'Every echo was real. This universe is yours.';
+}
+
+/* ── SCENE SWITCHING ── */
+function wipe(cb) {
+  const el = document.getElementById('scene-wipe');
+  el.classList.add('flashing');
+  setTimeout(()=>{
+    if(cb) cb();
+    setTimeout(()=>el.classList.remove('flashing'),400);
+  },300);
+}
+
+function goToScene(idx, instant=false) {
+  if(idx<0||idx>=TOTAL_SCENES) return;
+
+  const cards = document.querySelectorAll('.scene-card');
+  const dots  = document.querySelectorAll('.wnav-dot');
+
+  function doSwitch() {
+    cards.forEach((c,i)=>{
+      c.classList.toggle('active',i===idx);
+    });
+    dots.forEach((d,i)=>d.classList.toggle('active',i===idx));
+    document.getElementById('wrapped-progress').style.width = `${((idx+1)/TOTAL_SCENES)*100}%`;
+
+    const nextBtn = document.getElementById('wnav-next');
+    nextBtn.textContent  = idx===TOTAL_SCENES-1 ? '↩ Replay' : 'Next →';
+    nextBtn.classList.toggle('gold', idx < TOTAL_SCENES-1);
+
+    currentScene = idx;
+    updateOrbsForScene(idx);
+    setCameraForScene(idx);
+
+    // Trigger bar animations on scene 3
+    if(idx===2) {
+      setTimeout(()=>{
+        document.querySelectorAll('.id-bar-fill').forEach(f=>{
+          f.style.transform='scaleX(1)';
+        });
+      }, 300);
+    } else {
+      document.querySelectorAll('.id-bar-fill').forEach(f=>{
+        f.style.transform='scaleX(0)';
+      });
+    }
+
+    // Start core orb animation on scene 2
+    if(idx===1) setTimeout(drawCoreOrb, 100);
+  }
+
+  if(instant) { doSwitch(); return; }
+  wipe(doSwitch);
+}
+
+/* ── CONTROLS ── */
+document.getElementById('wnav-next').addEventListener('click',()=>{
+  if(currentScene===TOTAL_SCENES-1) { goToScene(0); }
+  else goToScene(currentScene+1);
+});
+document.getElementById('wnav-prev').addEventListener('click',()=>{
+  if(currentScene>0) goToScene(currentScene-1);
+});
+document.querySelectorAll('.wnav-dot').forEach((d,i)=>{
+  d.addEventListener('click',()=>goToScene(i));
+});
+
+// Period switcher
+document.querySelectorAll('.period-pill-btn').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.period-pill-btn').forEach(b=>b.classList.remove('active'));
+    this.classList.add('active');
+    currentPeriod = this.dataset.period;
+    data = computeData();
+    populateScenes();
+    goToScene(0,true);
+  });
+});
+
+// Close
+function closeCinematic() {
+  const stage = document.getElementById('wrapped-stage');
+  stage.style.transition='opacity .7s';
+  stage.style.opacity='0';
+  setTimeout(()=>{
+    cancelAnimationFrame(animFrame);
+    // Signal parent to close (for integration)
+    if(window.parent && window.parent.onWrappedClose) window.parent.onWrappedClose();
+    // Or dispatch event
+    window.dispatchEvent(new CustomEvent('wrappedClose'));
+    stage.style.display='none';
+  },700);
+}
+document.getElementById('wrapped-close').addEventListener('click',closeCinematic);
+document.getElementById('btn-close-final').addEventListener('click',closeCinematic);
+
+// Replay
+document.getElementById('btn-replay').addEventListener('click',()=>goToScene(0));
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') goToScene(currentScene+1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp')   goToScene(currentScene-1);
+  if(e.key==='Escape') closeCinematic();
+});
+
+// Touch swipe
+let touchStartX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX},{passive:true});
+document.addEventListener('touchend',e=>{
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if(Math.abs(dx)>50){
+    if(dx<0) goToScene(currentScene+1);
+    else     goToScene(currentScene-1);
+  }
+},{passive:true});
+
+/* ── INIT ── */
+function init() {
+  data = computeData();
+  initThree();
+  populateScenes();
+
+  // Hide loading
+  setTimeout(()=>{
+    document.getElementById('wrapped-loading').classList.add('done');
+    updateOrbsForScene(0);
+    setCameraForScene(0);
+  },800);
+}
+
+// Wait for Three.js
+const checkThree = setInterval(()=>{
+  if(typeof THREE !== 'undefined'){
+    clearInterval(checkThree);
+    init();
+  }
+},50);
+
+})();
+</script>
+</body>
+</html>
