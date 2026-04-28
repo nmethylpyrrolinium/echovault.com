@@ -9,6 +9,13 @@
 /* ── CINEMATIC WRAPPED (replaces old Wrapped module) ── */
 const CinematicWrapped = (() => {
 
+  const bridge = window.EchoVaultBridge || {};
+  const getState = typeof bridge.getState === 'function' ? bridge.getState : () => ({ echoes: [] });
+  const MOOD_COLORS = bridge.MOOD_COLORS || {};
+  const ARCHETYPE_NAMES = bridge.ARCHETYPE_NAMES || {};
+  const ARCHETYPE_DESCS = bridge.ARCHETYPE_DESCS || {};
+  const SOUNDPRINTS = bridge.SOUNDPRINTS || {};
+
   // ── SCENE DEFINITIONS ──
   const SCENES = ['sky','core','identity','sound','final'];
   let currentScene = 0;
@@ -34,7 +41,7 @@ const CinematicWrapped = (() => {
 
   function computeWrappedData() {
     const cutoff = wrappedPeriodLocal==='week'?7*86400000:wrappedPeriodLocal==='month'?30*86400000:Infinity;
-    const echoes = state.echoes.filter(e=>Date.now()-new Date(e.date)<cutoff);
+    const echoes = getState().echoes.filter(e=>Date.now()-new Date(e.date)<cutoff);
     if(!echoes.length) return null;
     const mc={};let totalInt=0;
     echoes.forEach(e=>{mc[e.mood]=(mc[e.mood]||0)+1;totalInt+=e.intensity;});
@@ -619,20 +626,4 @@ const CinematicWrapped = (() => {
   return {open,close};
 })();
 
-/* ── WIRE NAV BUTTON ──
-   REPLACE the existing nav-wrapped event listener in Nav module.
-   Find: navBtns['wrapped'].addEventListener('click', () => show('wrapped'))
-   Replace with: navBtns['wrapped'].addEventListener('click', () => CinematicWrapped.open())
-   
-   Or add this after the Nav module:
-*/
-// Override the wrapped nav button to open cinematic mode
-setTimeout(()=>{
-  const navWrapped = document.getElementById('nav-wrapped');
-  if(navWrapped) {
-    // Remove old listener by cloning
-    const newBtn = navWrapped.cloneNode(true);
-    navWrapped.parentNode.replaceChild(newBtn, navWrapped);
-    newBtn.addEventListener('click', () => CinematicWrapped.open());
-  }
-}, 100);
+window.CinematicWrapped = CinematicWrapped;
