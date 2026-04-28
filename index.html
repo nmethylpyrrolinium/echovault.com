@@ -224,7 +224,7 @@
   <!-- ── WRAPPED ── -->
   <div id="view-wrapped" class="view">
     <h2 class="view-title">Emotion Wrapped</h2>
-    <p class="view-subtitle">Spotify Wrapped — for your inner life</p>
+    <p class="view-subtitle">Cinematic journey through your inner universe</p>
     <div class="period-toggle" role="group" aria-label="Time period">
       <button class="period-btn active" id="period-week">This Week</button>
       <button class="period-btn"        id="period-month">This Month</button>
@@ -235,7 +235,19 @@
       <div class="empty-title">No echoes in this period</div>
       <div class="empty-sub">Create some echoes first.</div>
     </div>
-    <div id="wrapped-content"></div>
+    <div id="wrapped-content">
+      <div class="wrapped-cinematic-shell">
+        <canvas id="wrapped-cinematic-canvas" aria-hidden="true"></canvas>
+        <div class="wrapped-cinematic-overlay">
+          <div class="wrapped-scene-label" id="wrapped-scene-label">Emotional Sky</div>
+          <h3 class="wrapped-scene-title" id="wrapped-scene-title">Drifting through your emotional universe</h3>
+          <p class="wrapped-scene-copy" id="wrapped-scene-copy"></p>
+          <div id="wrapped-stats-mini" class="wrapped-stats-mini"></div>
+          <div id="wrapped-soundtrack-space" class="wrapped-soundtrack-space"></div>
+          <button id="wrapped-replay-btn" class="btn-secondary wrapped-replay-btn" type="button">Replay Journey</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ── FUN RITUALS ── -->

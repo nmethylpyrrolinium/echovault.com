@@ -1252,6 +1252,24 @@ const Timeline = (() => {
 const Wrapped = (() => {
   const contentEl = document.getElementById('wrapped-content');
   const emptyEl   = document.getElementById('wrapped-empty');
+  const canvas    = document.getElementById('wrapped-cinematic-canvas');
+  const sceneLabel= document.getElementById('wrapped-scene-label');
+  const sceneTitle= document.getElementById('wrapped-scene-title');
+  const sceneCopy = document.getElementById('wrapped-scene-copy');
+  const miniStats = document.getElementById('wrapped-stats-mini');
+  const soundtrackSpace = document.getElementById('wrapped-soundtrack-space');
+  const replayBtn = document.getElementById('wrapped-replay-btn');
+  const ctx = canvas.getContext('2d');
+  let raf = null;
+  let phase = 0;
+  let startedAt = 0;
+  let cinematicData = null;
+  const duration = 36000;
+
+  replayBtn.addEventListener('click', () => {
+    if (!cinematicData) return;
+    startedAt = performance.now();
+  });
 
   function filterEchoes() {
     if (state.wrappedPeriod==='week')  return state.echoes.filter(e=>Date.now()-new Date(e.date)<7*86400000);
@@ -1259,9 +1277,153 @@ const Wrapped = (() => {
     return state.echoes;
   }
 
+  function resizeCanvas() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.8);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function prepParticles(count, spread = 1) {
+    return Array.from({length:count}, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      z: Math.random() * spread,
+      size: 0.5 + Math.random() * 2.7
+    }));
+  }
+
+  function drawSky(grad, t, sceneT) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const bg = ctx.createLinearGradient(0,0,0,h);
+    bg.addColorStop(0, grad[0]);
+    bg.addColorStop(1, grad[1]);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+    cinematicData.far.forEach((p,i) => {
+      const z = (p.z + t * 0.015 + i * 0.0003) % 1;
+      const speed = 0.12 + (1-z) * 0.9;
+      const x = (p.x * w + Math.sin(t + i) * 12) % (w + 20);
+      const y = (p.y * h + t * speed * 18) % (h + 20);
+      ctx.fillStyle = `rgba(255,255,255,${0.16 + (1-z)*0.35})`;
+      ctx.beginPath();
+      ctx.arc(x,y,p.size * (2-z),0,Math.PI*2);
+      ctx.fill();
+    });
+    ctx.fillStyle = `rgba(255,255,255,${0.22 + sceneT * 0.35})`;
+    ctx.font = '500 20px Georgia, serif';
+    ctx.fillText('you are moving, not switching', 20 + Math.sin(t*0.9)*6, h * 0.3);
+  }
+
+  function drawCoreEmotion(color, t, sceneT) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const cx = w * 0.5 + Math.sin(t * 0.45) * 24;
+    const cy = h * 0.48 + Math.cos(t * 0.38) * 18;
+    const r = 65 + Math.sin(t * 2.2) * 7 + sceneT * 10;
+    const orb = ctx.createRadialGradient(cx - r*0.2, cy - r*0.25, r*0.12, cx, cy, r*1.65);
+    orb.addColorStop(0, `${color}dd`);
+    orb.addColorStop(0.65, `${color}55`);
+    orb.addColorStop(1, 'rgba(20,20,30,.05)');
+    ctx.fillStyle = orb;
+    ctx.beginPath(); ctx.arc(cx, cy, r*1.5, 0, Math.PI * 2); ctx.fill();
+    for (let i=0;i<32;i++) {
+      const a = t * (0.3 + i*0.02) + i;
+      const rr = r + 50 + (i % 4) * 9;
+      const px = cx + Math.cos(a) * rr;
+      const py = cy + Math.sin(a*1.2) * rr * 0.65;
+      ctx.fillStyle = `rgba(255,255,255,${0.1 + (i%5)/20})`;
+      ctx.beginPath(); ctx.arc(px, py, 1.3 + (i%3), 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawIdentityFormation(t, sceneT) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    const center = {x: w*0.35 + Math.sin(t*0.3)*16, y: h*0.52};
+    const points = 52;
+    for (let i=0;i<points;i++) {
+      const angle = (i / points) * Math.PI * 2;
+      const radius = 110 + Math.sin(i + t) * 30;
+      const tx = center.x + Math.cos(angle) * radius * 0.65;
+      const ty = center.y + Math.sin(angle) * radius * 0.95;
+      const sx = (i * 27 % w);
+      const sy = (i * 53 % h);
+      const mix = Math.min(1, sceneT * 1.2);
+      const px = sx * (1-mix) + tx * mix;
+      const py = sy * (1-mix) + ty * mix;
+      ctx.fillStyle = `rgba(201,168,76,${0.16 + mix * 0.5})`;
+      ctx.beginPath(); ctx.arc(px, py, 1.5 + (i%4)*0.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawSoundtrackField(t, sceneT) {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    cinematicData.tracks.slice(0,4).forEach((_, i) => {
+      const depth = i / 4;
+      const cardW = 130 - depth * 24;
+      const cardH = 76 - depth * 10;
+      const x = w * (0.62 + depth * 0.2) + Math.sin(t + i) * 12;
+      const y = h * (0.25 + depth * 0.17) + Math.cos(t*1.4 + i) * 7;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((-0.22 + i * 0.1) + Math.sin(t + i)*0.02);
+      ctx.globalAlpha = 0.26 + sceneT * 0.5 - depth * 0.12;
+      ctx.fillStyle = 'rgba(255,255,255,.13)';
+      ctx.fillRect(-cardW/2, -cardH/2, cardW, cardH);
+      ctx.strokeStyle = 'rgba(255,255,255,.2)';
+      ctx.strokeRect(-cardW/2, -cardH/2, cardW, cardH);
+      ctx.restore();
+    });
+  }
+
+  function currentScene(progress) {
+    if (progress < 0.25) return {id:'sky', index:0, local:progress/0.25};
+    if (progress < 0.5)  return {id:'core', index:1, local:(progress-0.25)/0.25};
+    if (progress < 0.75) return {id:'identity', index:2, local:(progress-0.5)/0.25};
+    return {id:'soundtrack', index:3, local:(progress-0.75)/0.25};
+  }
+
+  function animate(now) {
+    if (!cinematicData || state.currentView !== 'wrapped') return;
+    if (!startedAt) startedAt = now;
+    const elapsed = now - startedAt;
+    const progress = (elapsed % duration) / duration;
+    const scene = currentScene(progress);
+    const t = now * 0.0018;
+    phase += 0.01;
+    drawSky(cinematicData.grad, t, scene.id === 'sky' ? scene.local : 0.12);
+    drawCoreEmotion(cinematicData.color, t, scene.id === 'core' ? scene.local : 0.15);
+    drawIdentityFormation(t, scene.id === 'identity' ? scene.local : 0.18);
+    drawSoundtrackField(t, scene.id === 'soundtrack' ? scene.local : 0.1);
+
+    const sceneMap = [
+      ['Emotional Sky', 'Drifting through your emotional universe', `Dominant frequency: ${cinematicData.dominant}. Distant feelings move slowly, near feelings surge faster.`],
+      ['Core Emotion', `${MOOD_EMOJIS[cinematicData.dominant]} ${cinematicData.dominant} is your center of gravity`, 'The core entity pulses and subtly distorts as your recent intensity rises and falls.'],
+      ['Identity Formation', cinematicData.archetype, 'Fragments converge in layered depth, building a living identity in front of you.'],
+      ['Soundtrack Space', 'Your emotional soundtrack in orbit', 'Tracks hover across foreground and background layers. Focus draws one card forward while others recede.']
+    ];
+    const [label,title,copy] = sceneMap[scene.index];
+    sceneLabel.textContent = label;
+    sceneTitle.textContent = title;
+    sceneCopy.textContent = copy;
+
+    raf = requestAnimationFrame(animate);
+  }
+
+  function renderSoundtrackCards(tracks) {
+    soundtrackSpace.innerHTML = tracks.slice(0,4).map((track, i) => `
+      <a class="soundtrack-card-3d" style="transform:translateZ(${30 - i*12}px) translateX(${i*6}px) rotateY(${-11 + i*6}deg);opacity:${1 - i*0.16}" href="${track.spotify}" target="_blank" rel="noopener noreferrer">
+        <div class="soundtrack-meta">${track.artist}</div>
+        <div class="soundtrack-song">${track.song}</div>
+      </a>
+    `).join('');
+  }
+
   function render() {
     const filtered = filterEchoes();
     if (!filtered.length) {
+      cancelAnimationFrame(raf);
       emptyEl.style.display='block'; contentEl.style.display='none'; return;
     }
     emptyEl.style.display='none'; contentEl.style.display='block';
@@ -1273,58 +1435,37 @@ const Wrapped = (() => {
     const avgInt   = (totalInt/filtered.length).toFixed(1);
     const chaos    = Math.round(((moodCounts.chaos||0)+(moodCounts.anxious||0))/filtered.length*100);
     const voidCnt  = filtered.filter(e=>e.void).length;
-
-    contentEl.innerHTML = `
-      <div class="wrapped-card">
-        <div class="wrapped-card-title">Emotional Palette</div>
-        <div class="palette-wrap">
-          ${sorted.map(([mood,count])=>`
-            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
-              <div class="palette-swatch" style="background:${MOOD_COLORS[mood]}"></div>
-              <div style="font-family:var(--font-mono);font-size:8px;color:var(--muted);text-transform:uppercase;margin-top:22px">${mood}</div>
-              <div style="font-family:var(--font-mono);font-size:8px;color:var(--gold)">${count}×</div>
-            </div>`).join('')}
-        </div>
-      </div>
-      <div class="wrapped-card">
-        <div class="wrapped-card-title">By The Numbers</div>
-        <div class="stat-row">
-          <div class="stat-item"><div class="stat-value">${filtered.length}</div><div class="stat-label">Echoes</div></div>
-          <div class="stat-item"><div class="stat-value">${avgInt}</div><div class="stat-label">Avg Intensity</div></div>
-          <div class="stat-item"><div class="stat-value">${voidCnt}</div><div class="stat-label">Void Entries</div></div>
-          <div class="stat-item"><div class="stat-value" style="color:${MOOD_COLORS[dominant[0]]};font-size:20px">${dominant[0]}</div><div class="stat-label">Dominant</div></div>
-        </div>
-      </div>
-      <div class="wrapped-card">
-        <div class="wrapped-card-title">Stability / Chaos Balance</div>
-        <div class="balance-bar"><div class="balance-fill" style="width:${chaos}%"></div></div>
-        <div class="balance-labels"><span>stability ${100-chaos}%</span><span>${chaos}% chaos</span></div>
-        <p style="font-size:15px;font-style:italic;color:var(--muted);margin-top:14px;line-height:1.7">
-          ${chaos<20?'You moved through this period with quiet steadiness.':
-            chaos<50?'A balanced mix of turbulence and calm.':
-            chaos<75?'The winds were strong. You stayed upright.':
-            "Storms and more storms. You're still here. That's everything."}
-        </p>
-      </div>
-      <div class="wrapped-card">
-        <div class="wrapped-card-title">Recurring Patterns</div>
-        <ul class="pattern-list">
-          ${sorted.slice(0,5).map(([mood,count])=>`
-            <li class="pattern-item">
-              <div class="pattern-dot" style="background:${MOOD_COLORS[mood]}"></div>
-              <div class="pattern-name">${MOOD_EMOJIS[mood]} ${mood}</div>
-              <div class="pattern-count">${count} time${count!==1?'s':''}</div>
-            </li>`).join('')}
-        </ul>
-      </div>
-      <div class="wrapped-card" style="text-align:center">
-        <div class="wrapped-card-title">Identity Snapshot</div>
-        <div style="font-family:var(--font-editorial);font-size:28px;color:var(--gold);margin-bottom:8px">${getArchetype(moodCounts)}</div>
-        <p style="font-size:15px;font-style:italic;color:var(--muted);line-height:1.7">${getArchetypeDesc(moodCounts)}</p>
-      </div>`;
+    const dominantMood = dominant[0];
+    const tracks = SOUNDPRINTS[dominantMood] || [];
+    miniStats.innerHTML = `
+      <div class="wrapped-stat-pill">${filtered.length} echoes</div>
+      <div class="wrapped-stat-pill">avg intensity ${avgInt}</div>
+      <div class="wrapped-stat-pill">${chaos}% chaos / ${100-chaos}% stability</div>
+      <div class="wrapped-stat-pill">${voidCnt} void entries</div>
+    `;
+    renderSoundtrackCards(tracks);
+    cinematicData = {
+      dominant: dominantMood,
+      archetype: getArchetype(moodCounts),
+      color: MOOD_COLORS[dominantMood],
+      grad: [
+        `rgba(12,18,32,1)`,
+        `${MOOD_COLORS[dominantMood]}22`
+      ],
+      far: prepParticles(70, 1),
+      tracks
+    };
+    resizeCanvas();
+    cancelAnimationFrame(raf);
+    startedAt = performance.now();
+    raf = requestAnimationFrame(animate);
   }
 
-  return {render};
+  function resize() {
+    if (state.currentView === 'wrapped' && cinematicData) resizeCanvas();
+  }
+
+  return {render, resize};
 })();
 
 /* ── WEATHER ── */
@@ -2207,7 +2348,7 @@ document.addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => { state.tabHidden = document.hidden; });
 
 window.addEventListener('resize', () => {
-  Cosmos.resize(); Ripple.resize(); ConnectionCanvas.resize(); Whip.resize();
+  Cosmos.resize(); Ripple.resize(); ConnectionCanvas.resize(); Whip.resize(); Wrapped.resize();
   if (state.currentView === 'timeline') Timeline.render();
 }, {passive:true});
 
