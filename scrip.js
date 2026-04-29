@@ -6,7 +6,14 @@ const STORAGE_KEY  = 'echovault_echoes_v2';
 const USER_KEY     = 'echoUser';
 const OB_KEY       = 'echoOnboarded';
 
-const MOOD_COLORS = {
+/* ── SUPABASE ── */
+const SUPABASE_URL = 'https://phfwaxuyauuyskzruqbk.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBoZndheHV5YXV1eXNrenJ1cWJrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1NTgzODMsImV4cCI6MjA5MTEzNDM4M30.JWpdHd1g-HpUG7riWfv2qMHGe70ByVaHVcnkpcUaKuI';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null; // set after auth
+    
+  const MOOD_COLORS = {
   calm:'#5b8fa8', chaos:'#c44b4b', reflective:'#7c6fa0',
   anxious:'#c47a3a', joyful:'#7aab6e', empty:'#4a4a5a'
 };
