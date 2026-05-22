@@ -1,6 +1,6 @@
 // Keep these version constants declared once only; duplicate consts break service-worker startup after merge regressions.
 const APP_VERSION = 'scroll-unlock-overlay-cleanup';
-const CACHE = 'echovault-v15-scroll-unlock-overlay-cleanup';
+const CACHE = 'echovault-v16-stability-pass';
 
 const toScopeUrl = (path) => new URL(path, self.registration.scope).toString();
 const PRECACHE = ['./', 'index.html', 'styles.css', 'phase2-emotional-intelligence.js', 'script.js', 'manifest.json', 'icons/icon.svg', 'wrapped-cinematic-module.js'];
