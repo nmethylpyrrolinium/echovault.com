@@ -470,10 +470,12 @@ if (/\b(stripe|razorpay|paypal|checkout|pricing page|subscription)\b/i.test(scri
 const starterCodes = [
   ['ECHO-FOUNDERS-2026', 'founder'],
   ['VAULT-ALPHA', 'alpha'],
-  ['NIGHT-ARCHIVIST', 'premium']
+  ['NIGHT-ARCHIVIST', 'premium'],
+  ['NIGHT_ARCHIVIST', 'premium']
 ];
+const normalizeStarterCode = (code) => String(code || '').trim().toUpperCase().replace(/[\s_-]+/g, '');
 starterCodes.forEach(([code, tier]) => {
-  const digest = crypto.createHash('sha256').update(code.toUpperCase()).digest('hex');
+  const digest = crypto.createHash('sha256').update(normalizeStarterCode(code)).digest('hex');
   if (!index.includes(digest)) failures.push(`ACCESS_CODE_HASHES missing ${tier} starter hash`);
   if (!new RegExp(`"${digest}"\\s*:\\s*\\{[^}]*tier:\\s*"${tier}"`).test(index)) failures.push(`ACCESS_CODE_HASHES ${tier} hash missing tier payload`);
   if (script.includes(code)) failures.push(`Plaintext starter code leaked into script.js: ${code}`);
