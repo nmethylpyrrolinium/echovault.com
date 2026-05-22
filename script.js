@@ -451,7 +451,7 @@ const UserAccess = (() => {
   }
 
   const PremiumCodes = (() => {
-    function normalize(code) { return String(code || '').trim().toUpperCase(); }
+    function normalize(code) { return String(code || '').trim().toUpperCase().replace(/[\s_-]+/g, ''); }
     function getHashes() {
       const hashes = window.ECHOVAULT_CONFIG?.ACCESS_CODE_HASHES || {};
       return hashes && typeof hashes === 'object' && !Array.isArray(hashes) ? hashes : {};
@@ -571,7 +571,7 @@ const UserAccess = (() => {
     return next;
   }
   async function hashCode(code) {
-    const data = new TextEncoder().encode(String(code || '').trim().toUpperCase());
+    const data = new TextEncoder().encode(PremiumCodes.normalize(code));
     const digest = await crypto.subtle.digest('SHA-256', data);
     return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
   }
@@ -714,12 +714,26 @@ const SpecialAccessPortal = (() => {
     }
     return modal;
   }
-  function open() { const modal = ensure(); if (!modal) return; modal.classList.add('open'); modal.setAttribute('aria-hidden','false'); setTimeout(() => document.getElementById('special-access-code-input')?.focus(), 60); }
+  function open() {
+    const modal = ensure();
+    if (!modal) return;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    document.getElementById('special-access-error')?.remove();
+    setTimeout(() => document.getElementById('special-access-code-input')?.focus(), 60);
+  }
   function close() { const modal = document.getElementById('special-access-modal'); modal?.classList.remove('open'); modal?.setAttribute('aria-hidden','true'); }
   async function redeemFromPortal() {
     const input = document.getElementById('special-access-code-input') || document.getElementById('premium-access-code');
     const result = await UserAccess.redeemAccessCode(input?.value || '');
-    if (!result.ok) return Toast.show(result.error || 'That code didn’t open this room.', 3400);
+    if (!result.ok) {
+      const panel = document.querySelector('.special-access-panel');
+      let err = document.getElementById('special-access-error');
+      if (!err && panel) { err = document.createElement('div'); err.id='special-access-error'; err.className='auth-status error'; err.style.marginTop='10px'; panel.querySelector('.premium-code-row')?.insertAdjacentElement('afterend', err); }
+      if (err) err.textContent = 'Code not recognised';
+      return Toast.show(result.error || 'That code didn’t open this room.', 3400);
+    }
+    document.getElementById('special-access-error')?.remove();
     if (input) input.value = '';
     close();
     refreshEchoDependentUI();
@@ -788,6 +802,7 @@ const Nav = (() => {
 const Settings = (() => {
   const overlay = document.getElementById('settings-overlay');
   function open() {
+    let initTimeout = null;
     overlay?.setAttribute('aria-hidden','false');
     overlay?.classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -1161,6 +1176,7 @@ const PWAInstall = (() => {
   const dismissBtn = document.getElementById('pwa-dismiss-btn');
   const subText = banner?.querySelector('.pwa-sub');
   const DISMISS_KEY = 'echovault_pwa_dismissed';
+  const START_KEY = 'echovault_pwa_start';
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   function syncStandaloneClass() {
     document.documentElement.classList.toggle('is-standalone', Boolean(isStandalone()));
@@ -1170,8 +1186,9 @@ const PWAInstall = (() => {
     document.documentElement.style.setProperty('--pwa-space', visible ? '92px' : '0px');
   }
   function hide() { setBannerVisible(false); }
+  function isEligible(){ const start=Number(localStorage.getItem(START_KEY)||Date.now()); const spent=Date.now()-start; return (state.echoes?.length||0)>0 || spent>120000; }
   function show(fallback = false) {
-    if (localStorage.getItem(DISMISS_KEY) || isStandalone()) return;
+    if (localStorage.getItem(DISMISS_KEY) || isStandalone() || !isEligible()) return;
     if (fallback) {
       installBtn.textContent = 'How';
       if (subText) subText.textContent = 'Install from your browser menu when available';
@@ -1184,7 +1201,7 @@ const PWAInstall = (() => {
     setBannerVisible(true);
   }
   function init() {
-    syncStandaloneClass();
+    syncStandaloneClass(); if (!localStorage.getItem(START_KEY)) localStorage.setItem(START_KEY, String(Date.now()));
     AppEnvironment.applyClasses();
     window.matchMedia('(display-mode: standalone)').addEventListener?.('change', syncStandaloneClass);
     window.addEventListener('resize', AppEnvironment.applyClasses);
@@ -2066,8 +2083,8 @@ const EntryForm = (() => {
   const intensityVal    = document.getElementById('intensity-val');
   const silenceSlider   = document.getElementById('silence-slider');
   const silenceVal      = document.getElementById('silence-val');
-  const thoughtInput    = document.getElementById('thought-input');
-  const voidToggle      = document.getElementById('void-toggle');
+  const getThoughtInput = () => document.getElementById('thought-input');
+  const getVoidToggle = () => document.getElementById('void-toggle');
   const formWrap        = document.getElementById('entry-form-wrap');
   const confirmEl       = document.getElementById('echo-confirm');
   const submitBtn       = document.getElementById('submit-btn');
@@ -2131,16 +2148,21 @@ const EntryForm = (() => {
     if (parseInt(this.value) >= 7) SilenceParticles.spawn(parseInt(this.value));
   });
 
-  function toggleVoid() {
-    voidMode = !voidMode;
+  function applyVoidState(next, opts={}) {
+    const thoughtInput = getThoughtInput(); const voidToggle = getVoidToggle();
+    if (!thoughtInput || !voidToggle) return;
+    const wasVoid = voidMode;
+    voidMode = Boolean(next);
     voidToggle.classList.toggle('active', voidMode);
-    voidToggle.setAttribute('aria-checked', voidMode);
-    thoughtInput.disabled = voidMode;
-    thoughtInput.style.opacity = voidMode ? '.3' : '1';
-    if (voidMode) thoughtInput.value = '';
+    voidToggle.setAttribute('aria-checked', String(voidMode));
+    thoughtInput.disabled = voidMode; thoughtInput.style.opacity = voidMode ? '.3' : '1';
+    thoughtInput.placeholder = voidMode ? 'No words, only feeling' : 'Let it be incomplete. Let it be honest.';
+    if (voidMode && !wasVoid) thoughtInput.value = '';
+    if (!voidMode && wasVoid && opts.focus) thoughtInput.focus({preventScroll:true});
   }
-  voidToggle.addEventListener('click', toggleVoid);
-  voidToggle.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleVoid();}});
+  function toggleVoid(){ applyVoidState(!voidMode,{focus:true}); }
+  getVoidToggle()?.addEventListener('click', toggleVoid);
+  getVoidToggle()?.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleVoid();}});
 
   submitBtn.addEventListener('click', submit);
 
@@ -2158,7 +2180,7 @@ const EntryForm = (() => {
       mood: selectedMood,
       intensity: parseInt(intensitySlider.value),
       silence:   parseInt(silenceSlider.value),
-      thought:   voidMode ? null : thoughtInput.value.trim() || null,
+      thought:   voidMode ? null : (getThoughtInput()?.value || '').trim() || null,
       void:      voidMode,
       date:      new Date().toISOString()
     };
@@ -2200,6 +2222,7 @@ const EntryForm = (() => {
 
     formWrap.style.display = 'none';
     confirmEl.classList.add('show');
+    applyVoidState(false);
   }
 
   function reset() {
@@ -2208,13 +2231,15 @@ const EntryForm = (() => {
     updateSubmitState();
     intensitySlider.value = '5'; intensityVal.textContent = '5';
     silenceSlider.value   = '3'; silenceVal.textContent   = '3';
-    thoughtInput.value = ''; thoughtInput.disabled = false; thoughtInput.style.opacity = '1';
-    voidToggle.classList.remove('active'); voidToggle.setAttribute('aria-checked','false');
+    const thoughtInput = getThoughtInput();
+    if (thoughtInput) { thoughtInput.value=''; thoughtInput.disabled=false; thoughtInput.style.opacity='1'; thoughtInput.placeholder='Let it be incomplete. Let it be honest.'; }
+    const voidToggle = getVoidToggle();
+    if (voidToggle) { voidToggle.classList.remove('active'); voidToggle.setAttribute('aria-checked','false'); }
     formWrap.style.display = 'block'; confirmEl.classList.remove('show');
   }
 
-  document.getElementById('new-echo-btn').addEventListener('click', () => { reset(); Nav.show('entry'); });
-  return {reset};
+  document.getElementById('new-echo-btn').addEventListener('click', () => { reset(); NewEcho.start(); });
+  return {reset, applyVoidState};
 })();
 
 /* ── TIMELINE / BUBBLE SYSTEM ── */
@@ -4832,6 +4857,7 @@ const ReplayDrift = (() => {
   }
 
   function open() {
+    let initTimeout = null;
     const echoes = chronologicalEchoes();
     if (!echoes.length) { Toast.show('Create an Echo before entering Replay Drift.'); return; }
     previousFocus = document.activeElement;
@@ -4850,8 +4876,15 @@ const ReplayDrift = (() => {
       stage.classList.add('reduced');
       initStaticReduced();
     } else {
-      initThree();
-      raf = requestAnimationFrame(renderFrame);
+      try {
+        initTimeout = setTimeout(() => { if (stage.classList.contains('open') && !raf) { console.warn('[ReplayDrift] init timeout fallback'); stage.classList.add('reduced'); initStaticReduced(); } }, 2400);
+        initThree();
+        raf = requestAnimationFrame(renderFrame);
+      } catch (error) {
+        console.warn('[ReplayDrift] init failed, static fallback', error);
+        stage.classList.add('reduced');
+        initStaticReduced();
+      }
     }
     visibilityHandler = () => { clock.paused = document.visibilityState === 'hidden'; };
     keyHandler = (event) => {
