@@ -1972,6 +1972,7 @@ const OrbInteraction = (() => {
     dragOffY = e.clientY - orb.y;
     orb.held = true;
     orb.pressed = true;
+    document.body.classList.add('timeline-dragging');
     orb.targetScale = 0.87;
     orb.vx = 0; orb.vy = 0;
     el_setTransform(orb);
@@ -1980,7 +1981,7 @@ const OrbInteraction = (() => {
       if (orb.held) { orb.targetScale = 0.72; }
     }, 400);
 
-    const upFn = () => {
+    const endDrag = () => {
       clearTimeout(orb._holdTimer);
       orb.held = false; orb.pressed = false;
       dragOrb = null;
@@ -1993,8 +1994,12 @@ const OrbInteraction = (() => {
       orb.vx += Math.cos(angle)*1.5;
       orb.vy += Math.sin(angle)*1.5;
       document.removeEventListener('pointerup', upFn);
+      document.removeEventListener('pointercancel', cancelFn);
       document.removeEventListener('pointermove', moveFn);
+      document.body.classList.remove('timeline-dragging');
     };
+    const upFn = () => endDrag();
+    const cancelFn = () => endDrag();
     const moveFn = (ev) => {
       if (!orb.held) return;
       const tx = ev.clientX - dragOffX;
@@ -2005,6 +2010,7 @@ const OrbInteraction = (() => {
       if (Math.random() < .15) spawnSparkle(ev.clientX, ev.clientY, orb.color);
     };
     document.addEventListener('pointerup',   upFn,   {once:true});
+    document.addEventListener('pointercancel', cancelFn, {once:true});
     document.addEventListener('pointermove', moveFn, {passive:true});
   }
 
@@ -5333,3 +5339,22 @@ init();
   }
 
 // serviceWorker.register marker retained for smoke tests
+
+
+(function initScrollLockGuard(){
+  const overlayIds = ['settings-overlay','fun-modal','node-detail','migration-modal','import-preview-modal','replay-drift-stage','special-access-modal','courier-modal','alam-ai-panel','echosociety-overlay'];
+  const syncLock = () => {
+    const locked = overlayIds.some((id) => {
+      const el = document.getElementById(id);
+      if (!el) return false;
+      if (id === 'courier-modal' || id === 'alam-ai-panel' || id === 'echosociety-overlay') return true;
+      if (id === 'replay-drift-stage') return el.classList.contains('open');
+      return el.classList.contains('open') || el.getAttribute('aria-hidden') === 'false';
+    });
+    document.body.style.overflow = locked ? 'hidden' : '';
+  };
+  const mo = new MutationObserver(syncLock);
+  mo.observe(document.body, { subtree:true, childList:true, attributes:true, attributeFilter:['class','style','aria-hidden'] });
+  document.addEventListener('visibilitychange', syncLock);
+  syncLock();
+})();
