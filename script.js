@@ -625,7 +625,7 @@ const UserAccess = (() => {
       }
       el.hidden = !visible;
       el.classList.toggle('special-hidden', !visible);
-    });
+    }, undefined, 'migration:export');
   }
   function updatePremiumUI() {
     const status = document.getElementById('premium-access-status');
@@ -755,6 +755,19 @@ const SpecialAccessPortal = (() => {
   return { open, close, showWelcome, redeemFromPortal };
 })();
 
+
+const __evBoundListeners = new WeakMap();
+function bindOnce(el, event, handler, options, key) {
+  if (!el || !event || !handler) return false;
+  let map = __evBoundListeners.get(el);
+  if (!map) { map = new Set(); __evBoundListeners.set(el, map); }
+  const token = key || `${event}:${handler.name || 'anon'}`;
+  if (map.has(token)) return false;
+  el.addEventListener(event, handler, options);
+  map.add(token);
+  return true;
+}
+
 /* ── NAVIGATION ── */
 const Nav = (() => {
   const views   = ['home','entry','timeline','wrapped','fun'];
@@ -763,7 +776,7 @@ const Nav = (() => {
     navBtns[v] = document.getElementById('nav-' + v);
     viewEls[v] = document.getElementById('view-' + v);
     if (navBtns[v]) {
-      navBtns[v].addEventListener('click', () => show(v));
+      bindOnce(navBtns[v], 'click', () => show(v), undefined, `nav:${v}`);
     }
   });
   function show(name) {
@@ -954,7 +967,7 @@ const Settings = (() => {
       close();
       refreshEchoDependentUI();
     });
-    document.addEventListener('keydown', e => { if (e.key==='Escape'&&overlay?.classList.contains('open')) close(); });
+    bindOnce(document, 'keydown', e => { if (e.key==='Escape'&&overlay?.classList.contains('open')) close(); }, undefined, 'settings:escape-close');
     document.getElementById('nav-logo-btn')?.addEventListener('contextmenu', e => { e.preventDefault(); open(); });
   }
   init(); return { open, close };
@@ -1683,7 +1696,7 @@ const CursorAura = (() => {
   `;
   document.body.appendChild(aura);
   let mx=0,my=0,ax=0,ay=0,raf=null,visible=false;
-  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; if (!visible) { aura.style.opacity='1'; visible=true; } }, {passive:true});
+  document.addEventListener('mousemove', e => { mx=e.clientX; my=e.clientY; if (!visible) { aura.style.opacity='1'; visible=true; } }, {passive:true}, 'wire:global-resize');
   document.addEventListener('mouseleave', () => { aura.style.opacity='0'; visible=false; });
   function tick() { if (state.tabHidden || prefersReducedMotion()) { raf = setTimeout(() => requestAnimationFrame(tick), 300); return; } ax += (mx-ax) * 0.08; ay += (my-ay) * 0.08; aura.style.transform = `translate(${ax-140}px,${ay-140}px)`; raf = requestAnimationFrame(tick); }
   tick();
@@ -4928,21 +4941,21 @@ function formatDateShort(iso) {
 }
 
 /* ── WIRE EVENTS ── */
-document.getElementById('nav-logo-btn').addEventListener('click', e => { e.preventDefault(); Nav.show('home'); });
-document.getElementById('home-create-btn').addEventListener('click', () => Nav.show('entry'));
-document.getElementById('home-enter-btn').addEventListener('click',  () => Nav.show('timeline'));
-document.getElementById('timeline-create-btn').addEventListener('click', () => Nav.show('entry'));
-document.getElementById('wrapped-create-btn')?.addEventListener('click', () => Nav.show('entry'));
-document.getElementById('view-uni-btn').addEventListener('click', () => Nav.show('timeline'));
+bindOnce(document.getElementById('nav-logo-btn'), 'click', e => { e.preventDefault(); Nav.show('home'); }, undefined, 'wire:nav-logo');
+bindOnce(document.getElementById('home-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:home-create');
+bindOnce(document.getElementById('home-enter-btn'), 'click',  () => Nav.show('timeline'), undefined, 'wire:home-enter');
+bindOnce(document.getElementById('timeline-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:timeline-create');
+bindOnce(document.getElementById('wrapped-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:wrapped-create');
+bindOnce(document.getElementById('view-uni-btn'), 'click', () => Nav.show('timeline'), undefined, 'wire:view-uni');
 document.getElementById('chip-onboarding-btn')?.addEventListener('click', () => { localStorage.removeItem(OB_KEY); Onboarding.start(); });
-document.getElementById('detail-close-btn').addEventListener('click', () =>
-  document.getElementById('node-detail').classList.remove('open'));
-document.getElementById('node-detail').addEventListener('click', e => {
+bindOnce(document.getElementById('detail-close-btn'), 'click', () =>
+  document.getElementById('node-detail').classList.remove('open'), undefined, 'wire:detail-close');
+bindOnce(document.getElementById('node-detail'), 'click', e => {
   if (e.target.id==='node-detail') document.getElementById('node-detail').classList.remove('open');
-});
-document.getElementById('period-week').addEventListener('click',  function(){ setPeriod('week',this);  });
-document.getElementById('period-month').addEventListener('click', function(){ setPeriod('month',this); });
-document.getElementById('period-all').addEventListener('click',   function(){ setPeriod('all',this);   });
+}, undefined, 'wire:node-detail-overlay-close');
+bindOnce(document.getElementById('period-week'), 'click',  function(){ setPeriod('week',this);  }, undefined, 'wire:period-week');
+bindOnce(document.getElementById('period-month'), 'click', function(){ setPeriod('month',this); }, undefined, 'wire:period-month');
+bindOnce(document.getElementById('period-all'), 'click',   function(){ setPeriod('all',this);   }, undefined, 'wire:period-all');
 function setPeriod(p, btn) {
   state.wrappedPeriod = p;
   document.querySelectorAll('.period-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
@@ -4950,11 +4963,11 @@ function setPeriod(p, btn) {
   btn.setAttribute('aria-pressed', 'true');
   Wrapped.render();
 }
-document.getElementById('export-btn').addEventListener('click', () => Storage.exportVault(state.echoes));
-document.getElementById('import-btn').addEventListener('click', () => document.getElementById('import-file').click());
-document.addEventListener('click', (event) => {
+bindOnce(document.getElementById('export-btn'), 'click', () => Storage.exportVault(state.echoes), undefined, 'wire:export');
+bindOnce(document.getElementById('import-btn'), 'click', () => document.getElementById('import-file').click(), undefined, 'wire:import');
+bindOnce(document, 'click', (event) => {
   if (event.target.closest('.premium-settings-btn')) Settings.open();
-});
+}, undefined, 'wire:open-settings-from-premium-button');
 
 const UserChip = (() => {
   const chip = document.getElementById('user-chip');
@@ -5095,8 +5108,11 @@ const MigrationFlow = (() => {
     modal?.classList.remove('open');
   }
 
+  let initialized = false;
   function init() {
-    document.getElementById('migration-sync-btn')?.addEventListener('click', async () => {
+    if (initialized) return;
+    initialized = true;
+    bindOnce(document.getElementById('migration-sync-btn'), 'click', async () => {
       VaultPulse.set('syncing', 'Syncing Echoes…');
       VaultPulse.toastPulse();
 
@@ -5120,14 +5136,14 @@ const MigrationFlow = (() => {
       }
 
       close();
-    });
+    }, undefined, 'migration:sync');
 
-    document.getElementById('migration-keep-btn')?.addEventListener('click', () => {
+    bindOnce(document.getElementById('migration-keep-btn'), 'click', () => {
       VaultPulse.set('local', 'Offline — Held Locally');
       close();
-    });
+    }, undefined, 'migration:keep-local');
 
-    document.getElementById('migration-export-btn')?.addEventListener('click', () => {
+    bindOnce(document.getElementById('migration-export-btn'), 'click', () => {
       Storage.exportVault(state.echoes);
       VaultPulse.set('local', 'Local Vault');
       close();
@@ -5174,14 +5190,14 @@ const ImportFlow = (() => {
   return {preview};
 })();
 
-document.getElementById('import-file').addEventListener('change', function() {
+bindOnce(document.getElementById('import-file'), 'change', function() {
   if (this.files[0]) {
     Storage.importVault(this.files[0], (arr) => { ImportFlow.preview(arr); });
   }
   this.value = '';
-});
+}, undefined, 'wire:import-file-change');
 
-document.addEventListener('keydown', e => {
+bindOnce(document, 'keydown', e => {
   if (e.key === 'Escape') {
     document.getElementById('node-detail')?.classList.remove('open');
     document.getElementById('fun-modal')?.classList.remove('open');
@@ -5190,11 +5206,11 @@ document.addEventListener('keydown', e => {
     document.documentElement.style.overflow = '';
     DebugPanel?.ensure?.();
   }
-});
+}, undefined, 'wire:global-escape-close');
 
-document.addEventListener('visibilitychange', () => { state.tabHidden = document.hidden; if (document.hidden) ConnectionCanvas.stop(); else if (state.currentView === 'timeline') ConnectionCanvas.render(); });
+bindOnce(document, 'visibilitychange', () => { state.tabHidden = document.hidden; if (document.hidden) ConnectionCanvas.stop(); else if (state.currentView === 'timeline') ConnectionCanvas.render(); }, undefined, 'wire:visibility');
 
-window.addEventListener('resize', () => {
+bindOnce(window, 'resize', () => {
   Cosmos.resize(); Ripple.resize(); ConnectionCanvas.resize(); Whip.resize();
   if (state.currentView === 'timeline') Timeline.render();
 }, {passive:true});
@@ -5212,7 +5228,10 @@ window.EchoVaultBridge = {
 };
 
 /* ── INIT ── */
+let appInitialized = false;
 async function init() {
+  if (appInitialized) return;
+  appInitialized = true;
   state.echoes = Storage.load();
   Cosmos.init();
   Cosmos.draw();
@@ -5268,7 +5287,10 @@ const DebugPanel = (() => {
 const ServiceWorkerManager = (() => {
   const UPDATE_GUARD_KEY = 'ev_sw_update_reload_guard';
   const LAST_VERSION_KEY = 'ev_sw_last_version';
+  let swRegisterBound = false;
   async function register() {
+    if (swRegisterBound) return;
+    swRegisterBound = true;
     if (!('serviceWorker' in navigator)) return;
     if (sessionStorage.getItem(LAST_VERSION_KEY) === APP_VERSION) sessionStorage.removeItem(UPDATE_GUARD_KEY);
     sessionStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
