@@ -3906,6 +3906,17 @@ const Rituals = (() => {
     return `<div class="museum-shell" data-room="weather"><header class="museum-head"><h3>Emotional Museum</h3><p class="museum-sub">A private archive of what your echoes became.</p></header><div class="museum-room active"><h4>This room is still forming.</h4><p>Create more echoes to fill this wing.</p>${safeMessage}</div></div>`;
   }
 
+  function ritualLoadingHTML(type) {
+    const nameMap = { museum:'Emotional Museum', receipt:'Mood Receipt', dna:'Emotion DNA', crash:'Crash Report', sound:'Echo Soundprint', shatter:'Shatter Softly', vsvs:'Inner Conflict', lantern:'Void Lantern', stormjar:'Storm Jar' };
+    const title = nameMap[type] || 'Ritual';
+    return `<div class="ritual-loading-card" role="status" aria-live="polite"><div class="ritual-loading-spinner"></div><h3>Opening ${escapeHTML(title)}</h3><p>Gathering your echoes and preparing the room…</p></div>`;
+  }
+
+  function ritualErrorHTML(type) {
+    return `<div class="ritual-error-card"><h3>This ritual paused unexpectedly</h3><p>Your echoes are safe. Try reopening this room.</p><div class="ritual-actions"><button class="receipt-action-btn" id="ritual-retry-btn" data-ritual="${escapeHTML(type || '')}">Retry</button><button class="receipt-action-btn" id="ritual-close-btn">Close</button></div></div>`;
+  }
+
+
   function open(type) {
     if (type === 'special-access') { SpecialAccessPortal.open(); return; }
     if (type === 'alam') { if (UserAccess.requirePremium('alam_chat')) AlamAI.openChat(); return; }
@@ -3917,16 +3928,21 @@ const Rituals = (() => {
     if (!fn) { content.innerHTML = unknownRitualHTML(type); modal.classList.add('open'); return; }
     const shown = getRitualOb();
     const doOpen = () => {
-      try {
-        content.innerHTML = fn();
-      } catch (error) {
-        if (location.search.includes('debug=1')) console.warn('Ritual failed to render', type, error);
-        content.innerHTML = type === 'museum' ? museumFallbackHTML(error) : (type === 'receipt'
-          ? '<div class="receipt-error-card"><h3>Receipt unavailable</h3><p>Your echoes are safe. Try refreshing the app cache or creating one new echo.</p></div>'
-          : unknownRitualHTML(type));
-      }
       modal.classList.add('open');
-      postBuild(type);
+      content.innerHTML = ritualLoadingHTML(type);
+      requestAnimationFrame(() => {
+        try {
+          content.innerHTML = fn();
+          postBuild(type);
+        } catch (error) {
+          if (location.search.includes('debug=1')) console.warn('Ritual failed to render', type, error);
+          content.innerHTML = type === 'museum' ? museumFallbackHTML(error) : (type === 'receipt'
+            ? '<div class="receipt-error-card"><h3>Receipt unavailable</h3><p>Your echoes are safe. Try refreshing the app cache or creating one new echo.</p></div>'
+            : ritualErrorHTML(type));
+          document.getElementById('ritual-retry-btn')?.addEventListener('click', () => open(type));
+          document.getElementById('ritual-close-btn')?.addEventListener('click', close);
+        }
+      });
     };
     if (!shown[type]) {
       showRitualOnboarding(type, doOpen);
@@ -3984,6 +4000,14 @@ const Rituals = (() => {
           }
         });
       }
+    }
+    if (type === 'vsvs') {
+      document.getElementById('conflict-complete-btn')?.addEventListener('click', () => {
+        const note = document.getElementById('conflict-complete-note');
+        if (note) note.hidden = false;
+        Toast.show('Inner Conflict archived.');
+      });
+      document.getElementById('conflict-close-btn')?.addEventListener('click', close);
     }
     if (type === 'receipt') {
       const replayBtn = document.createElement('button');
@@ -4357,7 +4381,7 @@ Insight: ${d.insight}`;
       <div class="conflict-canvas-wrap">
         <canvas id="conflict-canvas"></canvas>
       </div>
-      <div class="conflict-instruction">drag to influence · watch them collide</div>
+      <div class="conflict-instruction">drag to influence · watch them collide</div><div class="ritual-actions"><button class="receipt-action-btn" id="conflict-complete-btn" type="button">I felt that</button><button class="receipt-action-btn" id="conflict-close-btn" type="button">Close ritual</button></div><div id="conflict-complete-note" class="ritual-msg" hidden>The room settles. You can return anytime.</div>
       <div class="conflict-labels">
         <div class="conflict-label past">${state.echoes.length > 1 ? state.echoes[state.echoes.length-1].mood : 'past'}</div>
         <div class="conflict-label present">${state.echoes[0]?.mood || 'present'}</div>
