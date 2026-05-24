@@ -251,6 +251,29 @@ const ArchetypeEngine = (() => {
 })();
 
 /* ── STATE ── */
+
+let lastFocusedElement = null;
+function modalFocusables(modal){
+  if(!modal) return [];
+  return Array.from(modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(el=>!el.disabled && el.offsetParent!==null);
+}
+function openModalA11y(modal,{initialSelector}={}){
+  if(!modal) return;
+  lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  modal.setAttribute('aria-hidden','false');
+  const target = initialSelector ? modal.querySelector(initialSelector) : null;
+  const focusTarget = target || modalFocusables(modal)[0] || modal;
+  setTimeout(()=>focusTarget?.focus?.(),30);
+}
+function closeModalA11y(modal){
+  if(!modal) return;
+  modal.setAttribute('aria-hidden','true');
+  if(lastFocusedElement?.focus) setTimeout(()=>lastFocusedElement.focus(),30);
+}
+function setLiveSummary(id,text){
+  const el = document.getElementById(id);
+  if(el) el.textContent = text;
+}
 let state = {
   echoes: [],
   selectedMood: null,
@@ -718,11 +741,10 @@ const SpecialAccessPortal = (() => {
     const modal = ensure();
     if (!modal) return;
     modal.classList.add('open');
-    modal.setAttribute('aria-hidden','false');
+    openModalA11y(modal,{initialSelector:'#special-access-code-input'});
     document.getElementById('special-access-error')?.remove();
-    setTimeout(() => document.getElementById('special-access-code-input')?.focus(), 60);
   }
-  function close() { const modal = document.getElementById('special-access-modal'); modal?.classList.remove('open'); modal?.setAttribute('aria-hidden','true'); }
+  function close() { const modal = document.getElementById('special-access-modal'); modal?.classList.remove('open'); closeModalA11y(modal); }
   async function redeemFromPortal() {
     const input = document.getElementById('special-access-code-input') || document.getElementById('premium-access-code');
     const result = await UserAccess.redeemAccessCode(input?.value || '');
@@ -816,7 +838,7 @@ const Settings = (() => {
   const overlay = document.getElementById('settings-overlay');
   function open() {
     let initTimeout = null;
-    overlay?.setAttribute('aria-hidden','false');
+    openModalA11y(overlay,{initialSelector:'#settings-close-btn'});
     overlay?.classList.add('open');
     document.body.style.overflow = 'hidden';
     populateStats();
@@ -827,7 +849,7 @@ const Settings = (() => {
   }
   function close() {
     overlay?.classList.remove('open');
-    overlay?.setAttribute('aria-hidden','true');
+    closeModalA11y(overlay);
     document.body.style.overflow = '';
   }
   function populateStats() {
@@ -1380,7 +1402,7 @@ const Onboarding = (() => {
   function start() {
     cleanupOverlays({ keepOnboarding:true });
     overlay.classList.add('open');
-    overlay.setAttribute('aria-hidden', 'false');
+    openModalA11y(overlay,{initialSelector:'#migration-sync-btn'});
     overlay.style.pointerEvents = '';
     current = 0;
     render();
@@ -1390,7 +1412,7 @@ const Onboarding = (() => {
   function finish() {
     try {
       overlay.classList.remove('open');
-      overlay.setAttribute('aria-hidden', 'true');
+      closeModalA11y(overlay);
       localStorage.setItem(OB_KEY, '1');
     } finally {
       cleanupOverlays({ keepOnboarding:false });
@@ -2363,6 +2385,9 @@ const Timeline = (() => {
 
       const wrap = document.createElement('div');
       wrap.className = 'bubble-wrap';
+      wrap.setAttribute('role','button');
+      wrap.setAttribute('tabindex','0');
+      wrap.setAttribute('aria-label',`Open echo from ${new Date(e.date).toLocaleDateString()} with mood ${e.mood}`);
       wrap.dataset.id = echo.id;
       wrap.style.cssText = `left:${x-size/2}px;top:${y-size/2}px;width:${size}px;height:${size}px;`;
 
@@ -4152,8 +4177,8 @@ const Rituals = (() => {
   }
 
 
-  function initLanternInteraction(){const canvas=document.getElementById('lantern-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');let glow=.4,taps=0,time=0,completed=false;const mood=PatternEngine.analyze(state.echoes).dominantMood||'reflective';const particles=[];const msg=document.getElementById('lantern-msg');const scene=document.querySelector('.lantern-scene');const frame=()=>{const w=canvas.width,h=canvas.height;time+=.012;ctx.clearRect(0,0,w,h);ctx.fillStyle='#07090f';ctx.fillRect(0,0,w,h);ctx.fillStyle='rgba(80,90,110,.12)';ctx.fillRect(0,h*.7,w,h*.3);const r=28+glow*8+Math.sin(time)*2;const g=ctx.createRadialGradient(w/2,h*.56,0,w/2,h*.56,r*2.2);g.addColorStop(0,`rgba(240,198,115,${.2+glow*.1})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h*.56,r*2.2,0,6.28);ctx.fill();ctx.fillStyle=`rgba(243,201,126,${.5+glow*.06})`;ctx.beginPath();ctx.arc(w/2,h*.58,r,0,6.28);ctx.fill();for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.y-=p.vy;p.x+=p.vx;p.life-=.02;ctx.fillStyle=`rgba(248,214,155,${Math.max(0,p.life)})`;ctx.fillRect(p.x,p.y,2,2);if(p.life<=0)particles.splice(i,1);}if(document.getElementById('lantern-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(frame)};frame();canvas.addEventListener('click',()=>{taps++;glow=Math.min(8,glow+1);scene?.setAttribute('data-state',taps>=4?'alive':(taps>=2?'faint':'unlit'));for(let i=0;i<6+taps;i++)particles.push({x:canvas.width/2+(Math.random()*36-18),y:canvas.height*.55,vx:Math.random()*.8-.4,vy:1+Math.random()*1.4,life:.8});if(taps===1)msg.textContent='The lantern wakes.';if(taps===2)msg.textContent='A faint warmth answers.';if(taps>=4){msg.textContent='Still here is still a signal.';document.getElementById('lantern-actions').hidden=false;scene?.classList.add('ritual-complete');if(!completed){completed=true;GentleQuests.evaluate('lantern_lit');VaultInventory.addMaterials([{name:'Moon Thread',qty:1}]);Toast.show('+1 Moon Thread');}}});document.getElementById('save-lantern')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'lantern',title:'Void Lantern',subtitle:'Still here is still a signal.',data:{glowLevel:glow,mood,created_at:new Date().toISOString()}});Toast.show('Lantern saved to museum ✓');});document.getElementById('dl-lantern')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderRelicCard({title:'Void Lantern',rarity:'luminous',coordinates:'EV-LIGHT',mood}),'void-lantern-card.png'));}
-  function initStormJarInteraction(){const canvas=document.getElementById('storm-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');const p=PatternEngine.analyze(state.echoes);let sparks=Math.max(10,Math.round((p.averageIntensity||4)*2));let taps=0,shake=0,flash=0;const msg=document.getElementById('storm-msg');const scene=document.querySelector('.storm-scene');const draw=()=>{const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#080a12';ctx.fillRect(0,0,w,h);const ox=(Math.random()-.5)*shake;ctx.save();ctx.translate(ox,0);ctx.strokeStyle='rgba(180,200,255,.65)';ctx.lineWidth=2;ctx.strokeRect(w/2-70,h/2-90,140,180);ctx.restore();for(let i=0;i<sparks;i++){ctx.strokeStyle='rgba(222,82,120,.6)';ctx.beginPath();const x=w/2-50+Math.random()*100,y=h/2-70+Math.random()*140;ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*22-11,y+Math.random()*22-11);ctx.stroke();}if(flash>0){ctx.strokeStyle=`rgba(255,230,180,${flash})`;ctx.beginPath();ctx.moveTo(w/2-20,h/2-70);ctx.lineTo(w/2+16,h/2-30);ctx.lineTo(w/2-8,h/2+20);ctx.stroke();flash=Math.max(0,flash-.06);}shake*=.88;if(document.getElementById('storm-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(draw)};draw();canvas.addEventListener('click',()=>{taps++;sparks=Math.min(52,sparks+4);shake=Math.min(14,shake+4);scene?.setAttribute('data-state',taps>=3?'contained':(taps>=2?'awake':'still'));if(taps===1)msg.textContent='Sparks begin to gather.';if(taps===2){msg.textContent='The jar trembles.';flash=.9;}if(taps>=3){msg.textContent='The storm has shape now.';document.getElementById('storm-actions').hidden=false;scene?.classList.add('ritual-complete');}});document.getElementById('save-storm')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'stormjar',title:'Storm Jar',subtitle:'The storm has shape now.',data:{sparkCount:sparks,mood:'chaos',created_at:new Date().toISOString()}});Toast.show('Storm saved to museum ✓');});document.getElementById('dl-storm')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderWeatherCard({name:'Storm Jar',summary:'The storm has shape now.',mood:'chaos'}),'storm-jar-card.png'));}
+  function initLanternInteraction(){const canvas=document.getElementById('lantern-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');let glow=.4,taps=0,time=0,completed=false;const mood=PatternEngine.analyze(state.echoes).dominantMood||'reflective';const particles=[];const msg=document.getElementById('lantern-msg');const scene=document.querySelector('.lantern-scene');const frame=()=>{const w=canvas.width,h=canvas.height;time+=.012;ctx.clearRect(0,0,w,h);ctx.fillStyle='#07090f';ctx.fillRect(0,0,w,h);ctx.fillStyle='rgba(80,90,110,.12)';ctx.fillRect(0,h*.7,w,h*.3);const r=28+glow*8+Math.sin(time)*2;const g=ctx.createRadialGradient(w/2,h*.56,0,w/2,h*.56,r*2.2);g.addColorStop(0,`rgba(240,198,115,${.2+glow*.1})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h*.56,r*2.2,0,6.28);ctx.fill();ctx.fillStyle=`rgba(243,201,126,${.5+glow*.06})`;ctx.beginPath();ctx.arc(w/2,h*.58,r,0,6.28);ctx.fill();for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.y-=p.vy;p.x+=p.vx;p.life-=.02;ctx.fillStyle=`rgba(248,214,155,${Math.max(0,p.life)})`;ctx.fillRect(p.x,p.y,2,2);if(p.life<=0)particles.splice(i,1);}if(document.getElementById('lantern-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(frame)};frame();canvas.addEventListener('click',()=>{taps++;glow=Math.min(8,glow+1);scene?.setAttribute('data-state',taps>=4?'alive':(taps>=2?'faint':'unlit'));const particleBurst = prefersReducedMotion() ? 2 : (6+taps); for(let i=0;i<particleBurst;i++)particles.push({x:canvas.width/2+(Math.random()*36-18),y:canvas.height*.55,vx:Math.random()*.8-.4,vy:1+Math.random()*1.4,life:.8});if(taps===1)msg.textContent='The lantern wakes.';if(taps===2)msg.textContent='A faint warmth answers.';if(taps>=4){msg.textContent='Still here is still a signal.';document.getElementById('lantern-actions').hidden=false;scene?.classList.add('ritual-complete');if(!completed){completed=true;GentleQuests.evaluate('lantern_lit');VaultInventory.addMaterials([{name:'Moon Thread',qty:1}]);Toast.show('+1 Moon Thread');}}});document.getElementById('save-lantern')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'lantern',title:'Void Lantern',subtitle:'Still here is still a signal.',data:{glowLevel:glow,mood,created_at:new Date().toISOString()}});Toast.show('Lantern saved to museum ✓');});document.getElementById('dl-lantern')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderRelicCard({title:'Void Lantern',rarity:'luminous',coordinates:'EV-LIGHT',mood}),'void-lantern-card.png'));}
+  function initStormJarInteraction(){const canvas=document.getElementById('storm-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');const p=PatternEngine.analyze(state.echoes);let sparks=Math.max(prefersReducedMotion()?4:10,Math.round((p.averageIntensity||4)*(prefersReducedMotion()?1:2)));let taps=0,shake=0,flash=0;const msg=document.getElementById('storm-msg');const scene=document.querySelector('.storm-scene');const draw=()=>{const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#080a12';ctx.fillRect(0,0,w,h);const ox=(Math.random()-.5)*shake;ctx.save();ctx.translate(ox,0);ctx.strokeStyle='rgba(180,200,255,.65)';ctx.lineWidth=2;ctx.strokeRect(w/2-70,h/2-90,140,180);ctx.restore();for(let i=0;i<sparks;i++){ctx.strokeStyle='rgba(222,82,120,.6)';ctx.beginPath();const x=w/2-50+Math.random()*100,y=h/2-70+Math.random()*140;ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*22-11,y+Math.random()*22-11);ctx.stroke();}if(flash>0){ctx.strokeStyle=`rgba(255,230,180,${flash})`;ctx.beginPath();ctx.moveTo(w/2-20,h/2-70);ctx.lineTo(w/2+16,h/2-30);ctx.lineTo(w/2-8,h/2+20);ctx.stroke();flash=Math.max(0,flash-.06);}shake*=.88;if(document.getElementById('storm-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(draw)};draw();canvas.addEventListener('click',()=>{taps++;sparks=Math.min(52,sparks+4);shake=Math.min(14,shake+4);scene?.setAttribute('data-state',taps>=3?'contained':(taps>=2?'awake':'still'));if(taps===1)msg.textContent='Sparks begin to gather.';if(taps===2){msg.textContent='The jar trembles.';flash=.9;}if(taps>=3){msg.textContent='The storm has shape now.';document.getElementById('storm-actions').hidden=false;scene?.classList.add('ritual-complete');}});document.getElementById('save-storm')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'stormjar',title:'Storm Jar',subtitle:'The storm has shape now.',data:{sparkCount:sparks,mood:'chaos',created_at:new Date().toISOString()}});Toast.show('Storm saved to museum ✓');});document.getElementById('dl-storm')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderWeatherCard({name:'Storm Jar',summary:'The storm has shape now.',mood:'chaos'}),'storm-jar-card.png'));}
   function close() { modal.classList.remove('open'); }
 
   /* Character image pool */
@@ -4445,8 +4470,8 @@ Insight: ${d.insight}`;
             </div>
             <div class="track-reason">${t.reason}</div>
             <div class="track-links">
-              <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer">Spotify</a>
-              <a class="track-link youtube" href="${t.youtube}" target="_blank" rel="noopener noreferrer">YouTube</a>
+              <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on Spotify (opens in new tab)">Spotify</a>
+              <a class="track-link youtube" href="${t.youtube}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on YouTube (opens in new tab)">YouTube</a>
             </div>
           </div>
         </div>`).join('')}
@@ -5319,7 +5344,7 @@ const ImportFlow = (() => {
     content.innerHTML = `<div>Echoes: ${arr.length}</div><div>Date Range: ${min} → ${max}</div><div>Profile Included: ${profileIncluded}</div><div>Import Type: vault json</div>`;
     modal?.classList.add('open');
   }
-  function close(){ modal?.classList.remove('open'); imported=null; }
+  function close(){ modal?.classList.remove('open'); closeModalA11y(modal); imported=null; }
   document.getElementById('import-merge-btn')?.addEventListener('click', () => {
     if (!imported) return;
     state.echoes = [...state.echoes, ...imported];
