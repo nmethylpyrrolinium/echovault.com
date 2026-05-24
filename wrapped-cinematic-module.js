@@ -30,6 +30,12 @@ const CinematicWrapped = (() => {
   let phase        = 0;
   let renderer, threeScene, camera;
   let orbGroup, particleGroups = [];
+  let nebulaMeshes = [];
+  let isVisible = true;
+  let isRunning = false;
+  let pendingSceneTimeouts = [];
+  let coreRaf = null;
+  let openTimeoutId = null;
   let camTargetZ = 80, camCurrentZ = 80;
   let camTargetX = 0,  camCurrentX = 0;
   let camTargetY = 0,  camCurrentY = 0;
@@ -258,6 +264,8 @@ const CinematicWrapped = (() => {
     };
     stage.addEventListener('touchstart',ts,{passive:true});
     stage.addEventListener('touchend',te,{passive:true});
+    stage._touchStartHandler = ts;
+    stage._touchEndHandler = te;
 
     return stage;
   }
@@ -316,6 +324,7 @@ const CinematicWrapped = (() => {
       m.position.set((Math.random()-.5)*280,(Math.random()-.5)*180,(Math.random()-.5)*200-120);
       m.rotation.set(Math.random(),Math.random(),Math.random());
       threeScene.add(m);
+      nebulaMeshes.push(m);
     }
   }
 
@@ -403,8 +412,9 @@ const CinematicWrapped = (() => {
   }
 
   function renderLoop() {
+    if(!isRunning){ animFrame=null; return; }
     animFrame=requestAnimationFrame(renderLoop);
-    if(!renderer||!threeScene||!camera) return;
+    if(!renderer||!threeScene||!camera||!isVisible) return;
     phase+=.006;
 
     camCurrentZ+=(camTargetZ-camCurrentZ)*.03;
@@ -443,13 +453,35 @@ const CinematicWrapped = (() => {
     renderer.render(threeScene,camera);
   }
 
+  function clearSceneTimeouts(){ pendingSceneTimeouts.forEach((id)=>clearTimeout(id)); pendingSceneTimeouts=[]; }
+
   function destroyThree() {
+    isRunning = false;
     cancelAnimationFrame(animFrame);
     animFrame=null;
-    if(renderer){ renderer.dispose(); renderer=null; }
-    threeScene=null; camera=null;
+    cancelAnimationFrame(coreRaf);
+    coreRaf = null;
+    clearSceneTimeouts();
+    if(renderer){
+      renderer.renderLists?.dispose?.();
+      renderer.dispose();
+      renderer.forceContextLoss?.();
+      renderer=null;
+    }
+    if(orbGroup){
+      orbGroup.children.forEach((obj)=>{
+        obj.geometry?.dispose?.();
+        if(Array.isArray(obj.material)) obj.material.forEach((m)=>m?.dispose?.());
+        else obj.material?.dispose?.();
+      });
+      orbGroup.clear();
+    }
+    particleGroups.forEach((p)=>{ p.geometry?.dispose?.(); p.material?.dispose?.(); });
+    nebulaMeshes.forEach((m)=>{ m.geometry?.dispose?.(); m.material?.dispose?.(); });
+    threeScene=null; camera=null; orbGroup=null;
     particleGroups=[];
-    if(window._cwResizeHandler){ window.removeEventListener('resize',window._cwResizeHandler); }
+    nebulaMeshes=[];
+    if(window._cwResizeHandler){ window.removeEventListener('resize',window._cwResizeHandler); window._cwResizeHandler = null; }
   }
 
   // ── CORE ORB 2D ──
@@ -482,7 +514,7 @@ const CinematicWrapped = (() => {
         const sz=1.8+Math.sin(a*2+i)*.7;
         ctx.beginPath(); ctx.arc(px,py,sz,0,Math.PI*2); ctx.fillStyle=color+'bb'; ctx.fill();
       }
-      requestAnimationFrame(frame);
+      coreRaf=requestAnimationFrame(frame);
     }
     frame();
   }
@@ -582,20 +614,22 @@ const CinematicWrapped = (() => {
 
       // Bars animation
       if(idx===2){
-        setTimeout(()=>{
+        const barsTid = setTimeout(()=>{
           document.querySelectorAll('#cw-s3-bars .cw-bar-fill').forEach(f=>{
             f.style.transform=`scaleX(${parseFloat(f.dataset.pct)/100})`;
           });
         },350);
+        pendingSceneTimeouts.push(barsTid);
       }
       // Core orb
-      if(idx===1) setTimeout(animateCoreCanvas,80);
+      if(idx===1) { const coreTid = setTimeout(animateCoreCanvas,80); pendingSceneTimeouts.push(coreTid); }
     }
 
     if(instant){doSwitch();return;}
     const wipe=stage.querySelector('#cw-wipe');
     wipe.style.opacity='1';
-    setTimeout(()=>{ doSwitch(); setTimeout(()=>{wipe.style.opacity='0';},350); },300);
+    const switchTid = setTimeout(()=>{ doSwitch(); const wipeTid = setTimeout(()=>{wipe.style.opacity='0';},350); pendingSceneTimeouts.push(wipeTid); },300);
+    pendingSceneTimeouts.push(switchTid);
   }
 
 
@@ -618,10 +652,14 @@ const CinematicWrapped = (() => {
 
     populateScenes(stage);
 
+    isVisible = !document.hidden;
+    isRunning = true;
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     if (!window.THREE) {
       showCinematicFallback(stage, 'Three.js is missing. You can still use Wrapped stats.');
     } else {
-      setTimeout(() => {
+      openTimeoutId = setTimeout(() => {
         try {
           initThree(stage.querySelector('#cw-canvas'));
           buildOrbsForScene(0);
@@ -637,10 +675,18 @@ const CinematicWrapped = (() => {
     });
   }
 
+  function handleVisibilityChange(){
+    isVisible = !document.hidden;
+  }
+
   function close() {
     const stage=document.getElementById('cw-stage');
     if(!stage) return;
     if(stage._kHandler) document.removeEventListener('keydown',stage._kHandler);
+    if(stage._touchStartHandler) stage.removeEventListener('touchstart', stage._touchStartHandler);
+    if(stage._touchEndHandler) stage.removeEventListener('touchend', stage._touchEndHandler);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if(openTimeoutId){ clearTimeout(openTimeoutId); openTimeoutId = null; }
     stage.style.opacity='0';
     setTimeout(()=>{ destroyThree(); stage.remove(); },750);
   }

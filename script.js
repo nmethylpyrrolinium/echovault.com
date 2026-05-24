@@ -4692,6 +4692,7 @@ const ReplayDrift = (() => {
   let visibilityHandler = null;
   let keyHandler = null;
   let initTimeoutId = null;
+  let audioStopTimeoutId = null;
 
   function chronologicalEchoes() {
     return [...state.echoes]
@@ -4927,8 +4928,10 @@ const ReplayDrift = (() => {
     if (!audio) return;
     const { context, gain, low, high } = audio;
     gain.gain.setTargetAtTime(0.0001, context.currentTime, 0.4);
-    setTimeout(() => {
+    if (audioStopTimeoutId) clearTimeout(audioStopTimeoutId);
+    audioStopTimeoutId = setTimeout(() => {
       low.stop(); high.stop(); context.close();
+      audioStopTimeoutId = null;
     }, 550);
     audio = null;
     audioBtn.textContent = 'Ambience Off';
@@ -4943,12 +4946,13 @@ const ReplayDrift = (() => {
     if (points) { points.geometry.dispose(); points.material.dispose(); }
     if (lineMesh) { lineMesh.geometry.dispose(); lineMesh.material.dispose(); }
     if (memoryGroup) memoryGroup.children.forEach((mesh) => { mesh.geometry.dispose(); mesh.material.dispose(); });
-    if (renderer) renderer.dispose();
+    if (renderer) { renderer.renderLists?.dispose?.(); renderer.dispose(); renderer.forceContextLoss?.(); }
     points = null; lineMesh = null; memoryGroup = null; renderer = null; scene = null; camera = null;
   }
 
   function close() {
     if (initTimeoutId) { clearTimeout(initTimeoutId); initTimeoutId = null; }
+    if (audioStopTimeoutId) { clearTimeout(audioStopTimeoutId); audioStopTimeoutId = null; }
     stopAudio();
     disposeThree();
     document.removeEventListener('visibilitychange', visibilityHandler);
@@ -4999,7 +5003,11 @@ const ReplayDrift = (() => {
         initStaticReduced();
       }
     }
-    visibilityHandler = () => { clock.paused = document.visibilityState === 'hidden'; };
+    visibilityHandler = () => {
+      const hidden = document.visibilityState === 'hidden';
+      clock.paused = hidden;
+      if (hidden) stopAudio();
+    };
     keyHandler = (event) => {
       if (event.key === 'Escape') close();
       if (event.key === 'Tab') {
