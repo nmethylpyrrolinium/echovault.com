@@ -1,6 +1,6 @@
 // Keep these version constants declared once only; duplicate consts break service-worker startup after merge regressions.
 const APP_VERSION = 'scroll-unlock-overlay-cleanup';
-const CACHE = 'echovault-v16-stability-pass';
+const CACHE = 'echovault-v17-phase5-pwa-mobile-reliability';
 
 const toScopeUrl = (path) => new URL(path, self.registration.scope).toString();
 const PRECACHE = ['./', 'index.html', 'styles.css', 'phase2-emotional-intelligence.js', 'script.js', 'manifest.json', 'icons/icon.svg', 'wrapped-cinematic-module.js'];
@@ -41,7 +41,7 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then((ca) => ca.put(FALLBACK_INDEX, c));
           return r;
         })
-        .catch(() => caches.match(FALLBACK_INDEX))
+        .catch(() => caches.match(FALLBACK_INDEX).then((cached) => cached || new Response('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EchoVault Offline</title><style>body{font-family:system-ui;background:#050508;color:#f3e7c5;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px;text-align:center}p{opacity:.85;max-width:28rem}</style></head><body><main><h1>EchoVault is offline</h1><p>Your local echoes are still safe. Reconnect to sync cloud features.</p></main></body></html>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } })))
     );
     return;
   }
@@ -72,7 +72,7 @@ self.addEventListener('fetch', (e) => {
           caches.open(CACHE).then((ca) => ca.put(e.request, c));
         }
         return r;
-      }))
+      }).catch(() => new Response('', { status: 503 })))
   );
 });
 
