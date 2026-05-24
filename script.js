@@ -970,7 +970,19 @@ const Settings = (() => {
     bindOnce(document, 'keydown', e => { if (e.key==='Escape'&&overlay?.classList.contains('open')) close(); }, undefined, 'settings:escape-close');
     document.getElementById('nav-logo-btn')?.addEventListener('contextmenu', e => { e.preventDefault(); open(); });
   }
-  init(); return { open, close };
+  
+function bindViewportHeightVar() {
+  const apply = () => {
+    const vh = (window.visualViewport?.height || window.innerHeight) * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  };
+  apply();
+  window.visualViewport?.addEventListener('resize', apply);
+  window.addEventListener('orientationchange', apply);
+  window.addEventListener('resize', apply);
+}
+
+init(); return { open, close };
 })();
 
 /* ── LOGIN SYSTEM ── */
@@ -1190,18 +1202,40 @@ const PWAInstall = (() => {
   const subText = banner?.querySelector('.pwa-sub');
   const DISMISS_KEY = 'echovault_pwa_dismissed';
   const START_KEY = 'echovault_pwa_start';
+  const ENGAGEMENT_KEY = 'echovault_pwa_engagement_v1';
+  const INSTALL_ATTEMPT_KEY = 'echovault_pwa_install_attempted';
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  function syncStandaloneClass() {
-    document.documentElement.classList.toggle('is-standalone', Boolean(isStandalone()));
+
+  function readEngagement() {
+    try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}') || {}; } catch { return {}; }
   }
-  function setBannerVisible(visible) {
-    banner?.classList.toggle('show', visible);
-    document.documentElement.style.setProperty('--pwa-space', visible ? '92px' : '0px');
+  function writeEngagement(next) {
+    localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify({
+      views: Array.isArray(next.views) ? next.views : [],
+      hasEcho: Boolean(next.hasEcho),
+      firstSeenAt: Number(next.firstSeenAt || Date.now())
+    }));
   }
+  function trackEngagement() {
+    const next = readEngagement();
+    next.firstSeenAt = next.firstSeenAt || Date.now();
+    next.views = Array.isArray(next.views) ? next.views : [];
+    next.hasEcho = Boolean(next.hasEcho || (state.echoes?.length || 0) > 0);
+    if (state.currentView && !next.views.includes(state.currentView)) next.views.push(state.currentView);
+    writeEngagement(next);
+  }
+  function isEligible() {
+    const data = readEngagement();
+    const start = Number(localStorage.getItem(START_KEY) || data.firstSeenAt || Date.now());
+    const spent = Date.now() - start;
+    const distinctViews = new Set(data.views || []).size;
+    return Boolean(data.hasEcho || distinctViews >= 3 || spent > 150000);
+  }
+  function syncStandaloneClass() { document.documentElement.classList.toggle('is-standalone', Boolean(isStandalone())); }
+  function setBannerVisible(visible) { banner?.classList.toggle('show', visible); document.documentElement.style.setProperty('--pwa-space', visible ? '92px' : '0px'); }
   function hide() { setBannerVisible(false); }
-  function isEligible(){ const start=Number(localStorage.getItem(START_KEY)||Date.now()); const spent=Date.now()-start; return (state.echoes?.length||0)>0 || spent>120000; }
   function show(fallback = false) {
-    if (localStorage.getItem(DISMISS_KEY) || isStandalone() || !isEligible()) return;
+    if (localStorage.getItem(DISMISS_KEY) || localStorage.getItem(INSTALL_ATTEMPT_KEY) || isStandalone() || !isEligible()) return;
     if (fallback) {
       installBtn.textContent = 'How';
       if (subText) subText.textContent = 'Install from your browser menu when available';
@@ -1214,29 +1248,36 @@ const PWAInstall = (() => {
     setBannerVisible(true);
   }
   function init() {
-    syncStandaloneClass(); if (!localStorage.getItem(START_KEY)) localStorage.setItem(START_KEY, String(Date.now()));
+    syncStandaloneClass();
+    if (!localStorage.getItem(START_KEY)) localStorage.setItem(START_KEY, String(Date.now()));
+    trackEngagement();
     AppEnvironment.applyClasses();
-    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', syncStandaloneClass);
+    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => { syncStandaloneClass(); if (isStandalone()) hide(); });
     window.addEventListener('resize', AppEnvironment.applyClasses);
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; show(false); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { trackEngagement(); show(false); } });
+    ['nav-home','nav-entry','nav-timeline','nav-wrapped','nav-fun'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => { trackEngagement(); show(false); }));
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; trackEngagement(); show(false); });
     installBtn?.addEventListener('click', async () => {
       if (!deferredInstallPrompt) {
+        localStorage.setItem(INSTALL_ATTEMPT_KEY, '1');
         Toast.show('Use your browser menu to add EchoVault to your Home Screen when install is available.', 5200);
+        hide();
         return;
       }
       installBtn.disabled = true;
       deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
+      const choice = await deferredInstallPrompt.userChoice.catch(() => ({ outcome: 'dismissed' }));
       installBtn.disabled = false;
+      if (choice?.outcome !== 'accepted') localStorage.setItem(DISMISS_KEY, '1');
       hide();
       deferredInstallPrompt = null;
     });
     dismissBtn?.addEventListener('click', () => { localStorage.setItem(DISMISS_KEY, '1'); hide(); });
-    window.addEventListener('appinstalled', () => { hide(); deferredInstallPrompt = null; });
-    setTimeout(() => { if (!deferredInstallPrompt) show(true); }, 2600);
+    window.addEventListener('appinstalled', () => { localStorage.setItem(INSTALL_ATTEMPT_KEY, '1'); hide(); deferredInstallPrompt = null; });
+    setTimeout(() => { trackEngagement(); if (deferredInstallPrompt) show(false); }, 6000);
     if (isStandalone()) hide();
   }
-  return { init };
+  return { init, trackEngagement };
 })();
 
 /* ── BREATH ANIMATION (login) ── */
@@ -2204,6 +2245,7 @@ const EntryForm = (() => {
       date:      new Date().toISOString()
     };
     state.echoes.unshift(echo);
+    PWAInstall.trackEngagement?.();
     Storage.save(state.echoes);
     const discoveredMaterials = MaterialEngine.generateForEcho(echo);
     VaultInventory.addMaterials(discoveredMaterials);
