@@ -45,8 +45,8 @@ window.ECHOVAULT_CONFIG = {
 <div id="pwa-banner">
   <img src="icons/icon.svg" alt="" width="36" height="36" style="border-radius:8px;flex-shrink:0">
   <div style="flex:1"><div class="pwa-title">Add EchoVault to Home Screen</div><div class="pwa-sub">Works offline · Feels like an app</div></div>
-  <button id="pwa-install-btn">Install</button>
-  <button id="pwa-dismiss-btn" aria-label="Dismiss">×</button>
+  <button id="pwa-install-btn" aria-label="Install EchoVault app">Install</button>
+  <button id="pwa-dismiss-btn" aria-label="Dismiss install prompt">×</button>
 </div>
 
 <!-- User chip -->
@@ -190,7 +190,8 @@ window.ECHOVAULT_CONFIG = {
 <div class="app-shell">
 
   <!-- ── HOME ── -->
-  <div id="view-home" class="view active" role="main">
+  <div id="view-home" class="view active" role="main" aria-describedby="universe-sr-summary">
+    <p id="universe-sr-summary" class="sr-only" aria-live="polite">Universe visualization of your emotional weather and identity drift.</p>
     <div class="hero-eyebrow">Your Emotional Universe</div>
     <h1 class="hero-title">Every feeling<br>is an <span>echo</span></h1>
     <p class="hero-sub">A living archive of who you are becoming — not a diary, but a cosmos of memory and feeling.</p>
@@ -325,7 +326,8 @@ window.ECHOVAULT_CONFIG = {
     </div>
 
     <!-- BUBBLE FIELD -->
-    <div id="bubble-field" aria-label="Memory bubble field"></div>
+    <p id="timeline-sr-summary" class="sr-only" aria-live="polite">Timeline bubbles represent your saved echoes. Open a bubble to hear full details.</p>
+    <div id="bubble-field" aria-label="Memory bubble field" aria-describedby="timeline-sr-summary"></div>
   </div>
 
   <!-- ── WRAPPED ── -->
@@ -351,7 +353,8 @@ window.ECHOVAULT_CONFIG = {
       </div>
       <button class="replay-drift-cta" id="replay-drift-btn" type="button">Drift Through Memory</button>
     </section>
-    <div id="wrapped-content"></div>
+    <p id="wrapped-sr-summary" class="sr-only" aria-live="polite">Wrapped summarizes your recent emotional patterns, intensity, and soundtrack.</p>
+    <div id="wrapped-content" aria-describedby="wrapped-sr-summary"></div>
   </div>
 
   <!-- ── FUN RITUALS ── -->
@@ -442,7 +445,7 @@ window.ECHOVAULT_CONFIG = {
 <div class="fun-modal" id="fun-modal" role="dialog" aria-modal="true" aria-label="Ritual artifact">
   <div class="fun-modal-card" id="fun-modal-inner">
     <button class="modal-close-btn" id="fun-modal-close" aria-label="Close modal">×</button>
-    <div id="fun-modal-content"></div>
+    <div id="fun-modal-content" aria-live="polite"></div>
   </div>
 </div>
 
