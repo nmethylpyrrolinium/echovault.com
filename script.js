@@ -345,18 +345,34 @@ function cleanupOverlays(options = {}) {
 
 /* ── STORAGE ── */
 const Storage = (() => {
+  function normalizeEcho(raw = {}) {
+    const moodRaw = String(raw.mood || '').trim().toLowerCase();
+    const mood = moodRaw && MOOD_COLORS[moodRaw] ? moodRaw : (moodFamily(moodRaw || 'reflective'));
+    const intensity = Number.isFinite(Number(raw.intensity)) ? Math.max(1, Math.min(10, Number(raw.intensity))) : 5;
+    const silence = Number.isFinite(Number(raw.silence)) ? Math.max(1, Math.min(10, Number(raw.silence))) : 3;
+    return {
+      id: raw.id || `${Date.now()}_${Math.random().toString(36).slice(2,7)}`,
+      mood,
+      intensity,
+      silence,
+      thought: raw.thought == null ? null : String(raw.thought),
+      void: Boolean(raw.void),
+      date: raw.date || new Date().toISOString()
+    };
+  }
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeEcho).sort((a,b)=>new Date(b.date)-new Date(a.date)) : [];
     } catch(e) { return []; }
   }
   function save(echoes) {
+    const normalized = (Array.isArray(echoes) ? echoes : []).map(normalizeEcho);
     clearTimeout(state.lsWriteTimer);
     state.lsWriteTimer = setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(echoes)); }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized)); }
       catch(e) { if (e.name==='QuotaExceededError') Toast.show('Storage full.', 3500); }
     }, 300);
   }
@@ -377,13 +393,13 @@ const Storage = (() => {
         const data = JSON.parse(e.target.result);
         const arr  = data.echoes || data;
         if (!Array.isArray(arr)) throw new Error('Invalid format');
-        onSuccess(arr);
+        onSuccess(arr.map(normalizeEcho));
         Toast.show(`Imported ${arr.length} echoes ✓`);
       } catch(err) { Toast.show('Import failed — invalid file.'); }
     };
     reader.readAsText(file);
   }
-  return {load, save, exportVault, importVault};
+  return {load, save, exportVault, importVault, normalizeEcho};
 })();
 
 /* ── TOAST ── */
@@ -2237,9 +2253,8 @@ const EntryForm = (() => {
     voidMode = Boolean(next);
     voidToggle.classList.toggle('active', voidMode);
     voidToggle.setAttribute('aria-checked', String(voidMode));
-    thoughtInput.disabled = voidMode; thoughtInput.style.opacity = voidMode ? '.3' : '1';
+    thoughtInput.readOnly = voidMode; thoughtInput.style.opacity = voidMode ? '.55' : '1';
     thoughtInput.placeholder = voidMode ? 'No words, only feeling' : 'Let it be incomplete. Let it be honest.';
-    if (voidMode && !wasVoid) thoughtInput.value = '';
     if (!voidMode && wasVoid && opts.focus) thoughtInput.focus({preventScroll:true});
   }
   function toggleVoid(){ applyVoidState(!voidMode,{focus:true}); }
@@ -2315,13 +2330,17 @@ const EntryForm = (() => {
     intensitySlider.value = '5'; intensityVal.textContent = '5';
     silenceSlider.value   = '3'; silenceVal.textContent   = '3';
     const thoughtInput = getThoughtInput();
-    if (thoughtInput) { thoughtInput.value=''; thoughtInput.disabled=false; thoughtInput.style.opacity='1'; thoughtInput.placeholder='Let it be incomplete. Let it be honest.'; }
+    if (thoughtInput) { thoughtInput.value=''; thoughtInput.readOnly=false; thoughtInput.style.opacity='1'; thoughtInput.placeholder='Let it be incomplete. Let it be honest.'; }
     const voidToggle = getVoidToggle();
     if (voidToggle) { voidToggle.classList.remove('active'); voidToggle.setAttribute('aria-checked','false'); }
     formWrap.style.display = 'block'; confirmEl.classList.remove('show');
   }
 
-  document.getElementById('new-echo-btn').addEventListener('click', () => { reset(); NewEcho.start(); });
+  document.getElementById('new-echo-btn').addEventListener('click', () => {
+    reset();
+    switchView('create');
+    document.querySelector('.mood-btn')?.focus({ preventScroll:true });
+  });
   return {reset, applyVoidState};
 })();
 
@@ -2354,9 +2373,10 @@ const Timeline = (() => {
 
     const placed = [];
 
-    state.echoes.forEach((echo, i) => {
-      const color    = MOOD_COLORS[echo.mood];
-      const baseSize = 74 + echo.intensity * 5;
+    state.echoes.forEach((rawEcho, i) => {
+      const echo = Storage.normalizeEcho(rawEcho);
+      const color    = MOOD_COLORS[echo.mood] || MOOD_COLORS[moodFamily(echo.mood)] || '#7c6fa0';
+      const baseSize = 74 + Number(echo.intensity || 5) * 5;
       const ageFactor = Math.max(.5, 1 - i * .025);
       const size     = Math.round(baseSize * ageFactor);
 
@@ -2421,13 +2441,17 @@ const Timeline = (() => {
       wrap.appendChild(shadow);
       wrap.appendChild(bubble);
 
-      wrap.addEventListener('click', (e) => {
+      const openFromNode = (e) => {
         if (Math.abs(e.movementX||0) > 5 || Math.abs(e.movementY||0) > 5) return;
         const rect = wrap.getBoundingClientRect();
         spawnResidue(rect.left+rect.width/2, rect.top+rect.height/2, color);
         if (echo.void) spawnVoidPulse(rect.left+rect.width/2, rect.top+rect.height/2);
         openDetail(echo);
         handleFocus(wrap);
+      };
+      wrap.addEventListener('click', openFromNode);
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openFromNode(e); }
       });
 
       field.appendChild(wrap);
@@ -2506,6 +2530,12 @@ const Timeline = (() => {
     setTimeout(() => document.getElementById('detail-close-btn')?.focus(), 40);
   }
 
+
+  bindOnce(document, 'keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const panel = document.getElementById('node-detail');
+    if (panel?.classList.contains('open')) panel.classList.remove('open');
+  }, undefined, 'timeline:escape-close-detail');
   return {render};
 })();
 
