@@ -2446,11 +2446,52 @@ const Timeline = (() => {
 const Wrapped = (() => {
   const contentEl = document.getElementById('wrapped-content');
   const emptyEl   = document.getElementById('wrapped-empty');
+  const VALID_PERIODS = new Set(['week', 'month', 'all']);
+  let renderToken = 0;
+  let loadingTimer = null;
+  let stuckTimer = null;
+
+  function normalizeEcho(raw, index = 0) {
+    if (!raw || typeof raw !== 'object') return null;
+    const dateObj = new Date(raw.date);
+    if (!Number.isFinite(dateObj.getTime())) return null;
+    const mood = String(raw.mood || '').trim() || 'reflective';
+    const intensity = Math.max(0, Math.min(10, Number(raw.intensity ?? 5) || 5));
+    const silence = Math.max(0, Math.min(10, Number(raw.silence ?? 5) || 5));
+    return { ...raw, id: raw.id || `legacy-${index}-${dateObj.getTime()}`, mood, intensity, silence, date: dateObj.toISOString(), thought: typeof raw.thought === 'string' ? raw.thought : '' };
+  }
+
+  function renderLoadingState() {
+    contentEl.style.display = 'block';
+    contentEl.innerHTML = `<section class="wrapped-card" data-wrapped-loading="true"><div class="wrapped-card-title">Loading Wrapped</div><p>Your recap is gathering into focus…</p></section>`;
+  }
+
+  function renderFallbackCard(title, body) {
+    contentEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    contentEl.innerHTML = `<section class="wrapped-card" style="text-align:center"><div class="wrapped-card-title">${escapeHTML(title)}</div><p style="color:var(--muted)">${escapeHTML(body)}</p><div style="margin-top:14px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn-primary" id="wrapped-retry-btn" type="button">Retry Wrapped</button><button class="btn-ghost" id="wrapped-static-btn" type="button">Show Calm Summary</button><button class="btn-ghost" id="wrapped-create-inline-btn" type="button">Create Echo</button></div></section>`;
+    document.getElementById('wrapped-retry-btn')?.addEventListener('click', () => render());
+    document.getElementById('wrapped-static-btn')?.addEventListener('click', () => renderStaticFallback());
+    document.getElementById('wrapped-create-inline-btn')?.addEventListener('click', () => Nav.show('entry'));
+  }
+
+  function renderStaticFallback() {
+    const all = (Array.isArray(state.echoes) ? state.echoes : []).map(normalizeEcho).filter(Boolean);
+    const sample = all.slice(0, 6);
+    const counts = sample.reduce((acc, echo) => { const key = moodFamily(echo.mood); acc[key] = (acc[key] || 0) + 1; return acc; }, {});
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'reflective';
+    contentEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+    contentEl.innerHTML = `<section class="wrapped-card"><div class="wrapped-card-title">Calm Summary</div><p>Wrapped cinematic details are unavailable right now. Your latest echoes are still safe and readable.</p><p style="font-style:italic;color:var(--muted)">Recent dominant mood: <b>${escapeHTML(dominant)}</b> · ${sample.length} sample echo${sample.length === 1 ? '' : 'es'}.</p></section>`;
+  }
 
   function filterEchoes() {
-    if (state.wrappedPeriod==='week')  return state.echoes.filter(e=>Date.now()-new Date(e.date)<7*86400000);
-    if (state.wrappedPeriod==='month') return state.echoes.filter(e=>Date.now()-new Date(e.date)<30*86400000);
-    return state.echoes;
+    const period = VALID_PERIODS.has(state.wrappedPeriod) ? state.wrappedPeriod : 'week';
+    state.wrappedPeriod = period;
+    const normalized = (Array.isArray(state.echoes) ? state.echoes : []).map(normalizeEcho).filter(Boolean).sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (period === 'week') return normalized.filter(e=>Date.now()-new Date(e.date)<7*86400000);
+    if (period === 'month') return normalized.filter(e=>Date.now()-new Date(e.date)<30*86400000);
+    return normalized;
   }
 
   function summarizeEvolution(echoes, patterns) {
@@ -2463,11 +2504,29 @@ const Wrapped = (() => {
   }
 
   function render() {
+    const token = ++renderToken;
+    clearTimeout(loadingTimer);
+    clearTimeout(stuckTimer);
+    renderLoadingState();
+    stuckTimer = setTimeout(() => {
+      if (token !== renderToken) return;
+      renderFallbackCard('Wrapped is taking longer than expected', 'No worries — you can retry, open a calm summary, or create a fresh echo.');
+    }, 2200);
+    loadingTimer = setTimeout(() => {
     const filtered = filterEchoes();
     if (!filtered.length) {
       emptyEl.style.display='block'; contentEl.style.display='none';
       emptyEl.querySelector('.empty-title').textContent = 'No echoes in this period — the room is still dim.';
       emptyEl.querySelector('.empty-sub').textContent = 'Create one small echo and Wrapped will turn it into a gentle emotional recap. Nothing dramatic required.';
+      clearTimeout(stuckTimer);
+      return;
+    }
+    if (filtered.length === 1) {
+      const echo = filtered[0];
+      emptyEl.style.display = 'none'; contentEl.style.display = 'block';
+      contentEl.innerHTML = `<section class="wrapped-card"><div class="wrapped-card-title">Mini Recap</div><p>One echo is enough to begin your Wrapped arc.</p><p style="font-style:italic;color:var(--muted)">Mood: <b>${escapeHTML(echo.mood)}</b> · intensity ${echo.intensity}/10 · silence ${echo.silence}/10</p><div style="margin-top:14px"><button class="btn-primary" id="wrapped-create-second-btn" type="button">Create Another Echo</button></div></section>`;
+      document.getElementById('wrapped-create-second-btn')?.addEventListener('click', () => Nav.show('entry'));
+      clearTimeout(stuckTimer);
       return;
     }
     emptyEl.style.display='none'; contentEl.style.display='block';
@@ -2536,9 +2595,11 @@ const Wrapped = (() => {
         <p style="font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)">streak: ${escapeHTML(patterns.currentStreakMood || '—')} × ${escapeHTML(patterns.currentStreakCount || 0)} · volatility ${escapeHTML(patterns.volatilityScore)}</p>
         <p style="font-size:14px;color:var(--text);margin-top:8px">${escapeHTML(patterns.oneLineInsight || 'You kept returning. That counts.')}</p>
       </div>`;
+    clearTimeout(stuckTimer);
+    }, 20);
   }
 
-  return {render};
+  return {render, renderStaticFallback};
 })();
 
 /* ── WEATHER ── */
@@ -4630,6 +4691,7 @@ const ReplayDrift = (() => {
   let resizeHandler = null;
   let visibilityHandler = null;
   let keyHandler = null;
+  let initTimeoutId = null;
 
   function chronologicalEchoes() {
     return [...state.echoes]
@@ -4886,6 +4948,7 @@ const ReplayDrift = (() => {
   }
 
   function close() {
+    if (initTimeoutId) { clearTimeout(initTimeoutId); initTimeoutId = null; }
     stopAudio();
     disposeThree();
     document.removeEventListener('visibilitychange', visibilityHandler);
@@ -4900,7 +4963,7 @@ const ReplayDrift = (() => {
   }
 
   function open() {
-    let initTimeout = null;
+    if (stage.classList.contains('open')) close();
     const echoes = chronologicalEchoes();
     if (!echoes.length) { Toast.show('Create an Echo before entering Replay Drift.'); return; }
     previousFocus = document.activeElement;
@@ -4920,7 +4983,14 @@ const ReplayDrift = (() => {
       initStaticReduced();
     } else {
       try {
-        initTimeout = setTimeout(() => { if (stage.classList.contains('open') && !raf) { console.warn('[ReplayDrift] init timeout fallback'); stage.classList.add('reduced'); initStaticReduced(); } }, 2400);
+        initTimeoutId = setTimeout(() => {
+          if (stage.classList.contains('open') && !raf) {
+            console.warn('[ReplayDrift] init timeout fallback');
+            stage.classList.add('reduced');
+            initStaticReduced();
+          }
+          initTimeoutId = null;
+        }, 2400);
         initThree();
         raf = requestAnimationFrame(renderFrame);
       } catch (error) {
@@ -4987,10 +5057,11 @@ bindOnce(document.getElementById('period-week'), 'click',  function(){ setPeriod
 bindOnce(document.getElementById('period-month'), 'click', function(){ setPeriod('month',this); }, undefined, 'wire:period-month');
 bindOnce(document.getElementById('period-all'), 'click',   function(){ setPeriod('all',this);   }, undefined, 'wire:period-all');
 function setPeriod(p, btn) {
-  state.wrappedPeriod = p;
+  state.wrappedPeriod = ['week', 'month', 'all'].includes(p) ? p : 'week';
   document.querySelectorAll('.period-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
-  btn.classList.add('active');
-  btn.setAttribute('aria-pressed', 'true');
+  const activeBtn = btn || document.getElementById(`period-${state.wrappedPeriod}`) || document.getElementById('period-week');
+  activeBtn?.classList.add('active');
+  activeBtn?.setAttribute('aria-pressed', 'true');
   Wrapped.render();
 }
 bindOnce(document.getElementById('export-btn'), 'click', () => Storage.exportVault(state.echoes), undefined, 'wire:export');
