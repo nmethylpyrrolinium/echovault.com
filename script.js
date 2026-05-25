@@ -2590,6 +2590,16 @@ const Wrapped = (() => {
   let loadingTimer = null;
   let stuckTimer = null;
 
+  function syncPeriodButtons(period) {
+    const safePeriod = VALID_PERIODS.has(period) ? period : 'week';
+    document.querySelectorAll('.period-btn').forEach((button) => {
+      const isActive = button?.dataset?.period === safePeriod || button?.id === `period-${safePeriod}`;
+      button.classList.toggle('active', Boolean(isActive));
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    return safePeriod;
+  }
+
   function normalizeEcho(raw, index = 0) {
     if (!raw || typeof raw !== 'object') return null;
     const dateObj = new Date(raw.date);
@@ -2627,6 +2637,7 @@ const Wrapped = (() => {
   function filterEchoes() {
     const period = VALID_PERIODS.has(state.wrappedPeriod) ? state.wrappedPeriod : 'week';
     state.wrappedPeriod = period;
+    syncPeriodButtons(period);
     const normalized = (Array.isArray(state.echoes) ? state.echoes : []).map(normalizeEcho).filter(Boolean).sort((a, b) => new Date(b.date) - new Date(a.date));
     if (period === 'week') return normalized.filter(e=>Date.now()-new Date(e.date)<7*86400000);
     if (period === 'month') return normalized.filter(e=>Date.now()-new Date(e.date)<30*86400000);
@@ -2652,6 +2663,7 @@ const Wrapped = (() => {
       renderFallbackCard('Wrapped is taking longer than expected', 'No worries — you can retry, open a calm summary, or create a fresh echo.');
     }, 2200);
     loadingTimer = setTimeout(() => {
+    if (token !== renderToken) return;
     const filtered = filterEchoes();
     if (!filtered.length) {
       emptyEl.style.display='block'; contentEl.style.display='none';
@@ -4832,6 +4844,7 @@ const ReplayDrift = (() => {
   let keyHandler = null;
   let initTimeoutId = null;
   let audioStopTimeoutId = null;
+  let closeInFlight = false;
 
   function chronologicalEchoes() {
     return [...state.echoes]
@@ -5063,15 +5076,19 @@ const ReplayDrift = (() => {
     audioBtn.setAttribute('aria-pressed', 'true');
   }
 
-  function stopAudio() {
+  function stopAudio(immediate = false) {
     if (!audio) return;
     const { context, gain, low, high } = audio;
+    const finishStop = () => {
+      try { low.stop(); } catch {}
+      try { high.stop(); } catch {}
+      context.close();
+      audioStopTimeoutId = null;
+    };
     gain.gain.setTargetAtTime(0.0001, context.currentTime, 0.4);
     if (audioStopTimeoutId) clearTimeout(audioStopTimeoutId);
-    audioStopTimeoutId = setTimeout(() => {
-      low.stop(); high.stop(); context.close();
-      audioStopTimeoutId = null;
-    }, 550);
+    if (immediate) finishStop();
+    else audioStopTimeoutId = setTimeout(finishStop, 550);
     audio = null;
     audioBtn.textContent = 'Ambience Off';
     audioBtn.setAttribute('aria-pressed', 'false');
@@ -5090,9 +5107,12 @@ const ReplayDrift = (() => {
   }
 
   function close() {
+    if (closeInFlight) return;
+    closeInFlight = true;
+    const wasOpen = stage.classList.contains('open');
     if (initTimeoutId) { clearTimeout(initTimeoutId); initTimeoutId = null; }
     if (audioStopTimeoutId) { clearTimeout(audioStopTimeoutId); audioStopTimeoutId = null; }
-    stopAudio();
+    stopAudio(true);
     disposeThree();
     document.removeEventListener('visibilitychange', visibilityHandler);
     document.removeEventListener('keydown', keyHandler);
@@ -5102,7 +5122,8 @@ const ReplayDrift = (() => {
     document.body.style.overflow = '';
     staticLayer.innerHTML = '';
     fragmentEl.textContent = '';
-    if (previousFocus?.focus) previousFocus.focus({ preventScroll:true });
+    if (wasOpen && previousFocus?.focus) previousFocus.focus({ preventScroll:true });
+    closeInFlight = false;
   }
 
   function open() {
@@ -5205,10 +5226,12 @@ bindOnce(document.getElementById('period-month'), 'click', function(){ setPeriod
 bindOnce(document.getElementById('period-all'), 'click',   function(){ setPeriod('all',this);   }, undefined, 'wire:period-all');
 function setPeriod(p, btn) {
   state.wrappedPeriod = ['week', 'month', 'all'].includes(p) ? p : 'week';
-  document.querySelectorAll('.period-btn').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
   const activeBtn = btn || document.getElementById(`period-${state.wrappedPeriod}`) || document.getElementById('period-week');
-  activeBtn?.classList.add('active');
-  activeBtn?.setAttribute('aria-pressed', 'true');
+  document.querySelectorAll('.period-btn').forEach((button) => {
+    const isActive = button === activeBtn || button?.dataset?.period === state.wrappedPeriod || button?.id === `period-${state.wrappedPeriod}`;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
   Wrapped.render();
 }
 bindOnce(document.getElementById('export-btn'), 'click', () => Storage.exportVault(state.echoes), undefined, 'wire:export');
