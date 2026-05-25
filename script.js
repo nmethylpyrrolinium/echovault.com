@@ -2334,6 +2334,7 @@ const Timeline = (() => {
   let focusedId  = null;
 
   function render() {
+    if (!field || !emptyEl) return;
     field.innerHTML = '';
     OrbInteraction.clear();
 
@@ -2351,8 +2352,15 @@ const Timeline = (() => {
     const fieldW = field.offsetWidth || window.innerWidth - 64;
     const fieldH = Math.max(560, state.echoes.length * 34);
     field.style.height = fieldH + 'px';
+    const fallbackNeeded = !Number.isFinite(fieldW) || fieldW <= 120 || fieldH <= 0;
 
     const placed = [];
+    let renderedNodeCount = 0;
+
+    if (fallbackNeeded) {
+      renderFallbackCards();
+      return;
+    }
 
     state.echoes.forEach((echo, i) => {
       const color    = MOOD_COLORS[echo.mood];
@@ -2387,7 +2395,7 @@ const Timeline = (() => {
       wrap.className = 'bubble-wrap';
       wrap.setAttribute('role','button');
       wrap.setAttribute('tabindex','0');
-      wrap.setAttribute('aria-label',`Open echo from ${new Date(e.date).toLocaleDateString()} with mood ${e.mood}`);
+      wrap.setAttribute('aria-label',`Open echo from ${new Date(echo.date).toLocaleDateString()} with mood ${echo.mood}`);
       wrap.dataset.id = echo.id;
       wrap.style.cssText = `left:${x-size/2}px;top:${y-size/2}px;width:${size}px;height:${size}px;`;
 
@@ -2429,8 +2437,14 @@ const Timeline = (() => {
         openDetail(echo);
         handleFocus(wrap);
       });
+      wrap.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        wrap.click();
+      });
 
       field.appendChild(wrap);
+      renderedNodeCount++;
 
       const orb = OrbInteraction.register(wrap, x, y, size, color, echo.id, echo);
       orb._mood = echo.mood;
@@ -2439,9 +2453,28 @@ const Timeline = (() => {
     // Feed connection canvas
     ConnectionCanvas.setOrbs(placed.map(p => ({x:p.x, y:p.y, mood:p.mood, echo:p.echo})), true);
     ConnectionCanvas.render();
+    if (!renderedNodeCount) renderFallbackCards();
 
     document.getElementById('timeline-tide-label').textContent =
       (() => { const h = new Date().getHours(); return (h>=22||h<5)?'🌊 memory tide active':''; })();
+  }
+
+  function renderFallbackCards() {
+    field.innerHTML = '';
+    field.classList.add('timeline-fallback-active');
+    const list = document.createElement('div');
+    list.className = 'timeline-fallback-list';
+    state.echoes.forEach((echo) => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'timeline-fallback-card';
+      card.style.setProperty('--mood-color', MOOD_COLORS[echo.mood] || '#c9a84c');
+      card.setAttribute('aria-label', `Open echo from ${new Date(echo.date).toLocaleDateString()} with mood ${echo.mood}`);
+      card.innerHTML = `<strong>${escapeHTML(echo.mood)}</strong><span>${formatDateShort(echo.date)}</span><small>Intensity ${escapeHTML(String(echo.intensity || 0))} · Silence ${escapeHTML(String(echo.silence || 0))}</small>`;
+      card.addEventListener('click', () => openDetail(echo));
+      list.appendChild(card);
+    });
+    field.appendChild(list);
   }
 
   function handleFocus(clickedWrap) {
