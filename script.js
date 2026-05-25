@@ -1223,41 +1223,71 @@ const PWAInstall = (() => {
   const dismissBtn = document.getElementById('pwa-dismiss-btn');
   const subText = banner?.querySelector('.pwa-sub');
   const DISMISS_KEY = 'echovault_pwa_dismissed';
-  const START_KEY = 'echovault_pwa_start';
-  const ENGAGEMENT_KEY = 'echovault_pwa_engagement_v1';
+  const ENGAGEMENT_KEY = 'echovault_pwa_engagement_v2';
   const INSTALL_ATTEMPT_KEY = 'echovault_pwa_install_attempted';
+  const INSTALL_ATTEMPT_AT_KEY = 'echovault_pwa_install_attempted_at';
+  const ATTEMPT_COOLDOWN_MS = 1000 * 60 * 60 * 24 * 7;
+  const ACTIVE_MS_TARGET = 30000;
+  const MAJOR_VIEWS = new Set(['home', 'entry', 'timeline', 'wrapped', 'fun']);
   const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   function readEngagement() {
-    try { return JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}') || {}; } catch { return {}; }
+    try {
+      const raw = JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}') || {};
+      return {
+        views: Array.isArray(raw.views) ? raw.views.filter((v) => MAJOR_VIEWS.has(v)) : [],
+        hasEcho: Boolean(raw.hasEcho),
+        firstSeenAt: Number(raw.firstSeenAt || Date.now()),
+        activeMs: Number(raw.activeMs || 0),
+        lastActiveAt: Number(raw.lastActiveAt || 0)
+      };
+    } catch {
+      return { views: [], hasEcho: false, firstSeenAt: Date.now(), activeMs: 0, lastActiveAt: 0 };
+    }
   }
   function writeEngagement(next) {
     localStorage.setItem(ENGAGEMENT_KEY, JSON.stringify({
-      views: Array.isArray(next.views) ? next.views : [],
+      views: Array.isArray(next.views) ? next.views.filter((v) => MAJOR_VIEWS.has(v)) : [],
       hasEcho: Boolean(next.hasEcho),
-      firstSeenAt: Number(next.firstSeenAt || Date.now())
+      firstSeenAt: Number(next.firstSeenAt || Date.now()),
+      activeMs: Math.max(0, Number(next.activeMs || 0)),
+      lastActiveAt: Number(next.lastActiveAt || 0)
     }));
   }
-  function trackEngagement() {
+  function trackEngagement(opts = {}) {
     const next = readEngagement();
-    next.firstSeenAt = next.firstSeenAt || Date.now();
+    const now = Date.now();
+    const hidden = document.hidden;
+    next.firstSeenAt = next.firstSeenAt || now;
     next.views = Array.isArray(next.views) ? next.views : [];
-    next.hasEcho = Boolean(next.hasEcho || (state.echoes?.length || 0) > 0);
-    if (state.currentView && !next.views.includes(state.currentView)) next.views.push(state.currentView);
+    next.hasEcho = Boolean(next.hasEcho || opts.hasEcho || (state.echoes?.length || 0) > 0);
+    if (opts.view && MAJOR_VIEWS.has(opts.view) && !next.views.includes(opts.view)) next.views.push(opts.view);
+    if (next.lastActiveAt && !hidden) next.activeMs += Math.max(0, now - next.lastActiveAt);
+    next.lastActiveAt = hidden ? 0 : now;
     writeEngagement(next);
+    return next;
+  }
+  function hasRecentInstallAttempt() {
+    const flag = localStorage.getItem(INSTALL_ATTEMPT_KEY);
+    if (!flag) return false;
+    const at = Number(localStorage.getItem(INSTALL_ATTEMPT_AT_KEY) || 0);
+    return !at || (Date.now() - at) < ATTEMPT_COOLDOWN_MS;
+  }
+  function markInstallAttempt() {
+    localStorage.setItem(INSTALL_ATTEMPT_KEY, '1');
+    localStorage.setItem(INSTALL_ATTEMPT_AT_KEY, String(Date.now()));
   }
   function isEligible() {
-    const data = readEngagement();
-    const start = Number(localStorage.getItem(START_KEY) || data.firstSeenAt || Date.now());
-    const spent = Date.now() - start;
+    const data = trackEngagement({ view: state.currentView });
     const distinctViews = new Set(data.views || []).size;
-    return Boolean(data.hasEcho || distinctViews >= 3 || spent > 150000);
+    return Boolean(data.hasEcho || distinctViews >= 3 || data.activeMs >= ACTIVE_MS_TARGET);
   }
   function syncStandaloneClass() { document.documentElement.classList.toggle('is-standalone', Boolean(isStandalone())); }
   function setBannerVisible(visible) { banner?.classList.toggle('show', visible); document.documentElement.style.setProperty('--pwa-space', visible ? '92px' : '0px'); }
   function hide() { setBannerVisible(false); }
   function show(fallback = false) {
-    if (localStorage.getItem(DISMISS_KEY) || localStorage.getItem(INSTALL_ATTEMPT_KEY) || isStandalone() || !isEligible()) return;
+    if (!document.body.classList.contains('app-unlocked')) return;
+    if (localStorage.getItem(DISMISS_KEY) || hasRecentInstallAttempt() || isStandalone() || !isEligible()) return;
     if (fallback) {
       installBtn.textContent = 'How';
       if (subText) subText.textContent = 'Install from your browser menu when available';
@@ -1271,17 +1301,16 @@ const PWAInstall = (() => {
   }
   function init() {
     syncStandaloneClass();
-    if (!localStorage.getItem(START_KEY)) localStorage.setItem(START_KEY, String(Date.now()));
-    trackEngagement();
+    trackEngagement({ view: state.currentView });
     AppEnvironment.applyClasses();
     window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => { syncStandaloneClass(); if (isStandalone()) hide(); });
     window.addEventListener('resize', AppEnvironment.applyClasses);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { trackEngagement(); show(false); } });
-    ['nav-home','nav-entry','nav-timeline','nav-wrapped','nav-fun'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => { trackEngagement(); show(false); }));
-    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; trackEngagement(); show(false); });
+    document.addEventListener('visibilitychange', () => { const data = trackEngagement({ view: state.currentView }); if (!document.hidden && data.activeMs >= ACTIVE_MS_TARGET) show(false); if (document.hidden) hide(); });
+    ['nav-home','nav-entry','nav-timeline','nav-wrapped','nav-fun'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => { trackEngagement({ view: id.replace('nav-','') }); show(false); }));
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; trackEngagement({ view: state.currentView }); show(false); });
     installBtn?.addEventListener('click', async () => {
       if (!deferredInstallPrompt) {
-        localStorage.setItem(INSTALL_ATTEMPT_KEY, '1');
+        markInstallAttempt();
         Toast.show('Use your browser menu to add EchoVault to your Home Screen when install is available.', 5200);
         hide();
         return;
@@ -1290,13 +1319,14 @@ const PWAInstall = (() => {
       deferredInstallPrompt.prompt();
       const choice = await deferredInstallPrompt.userChoice.catch(() => ({ outcome: 'dismissed' }));
       installBtn.disabled = false;
+      markInstallAttempt();
       if (choice?.outcome !== 'accepted') localStorage.setItem(DISMISS_KEY, '1');
       hide();
       deferredInstallPrompt = null;
     });
     dismissBtn?.addEventListener('click', () => { localStorage.setItem(DISMISS_KEY, '1'); hide(); });
-    window.addEventListener('appinstalled', () => { localStorage.setItem(INSTALL_ATTEMPT_KEY, '1'); hide(); deferredInstallPrompt = null; });
-    setTimeout(() => { trackEngagement(); if (deferredInstallPrompt) show(false); }, 6000);
+    window.addEventListener('appinstalled', () => { markInstallAttempt(); hide(); deferredInstallPrompt = null; });
+    setTimeout(() => { trackEngagement({ view: state.currentView }); if (deferredInstallPrompt) show(false); }, 6000);
     if (isStandalone()) hide();
   }
   return { init, trackEngagement };
@@ -2220,15 +2250,24 @@ const EntryForm = (() => {
     });
   });
 
-  intensitySlider.addEventListener('input', function() {
-    intensityVal.textContent = this.value;
-    this.setAttribute('aria-valuenow', this.value);
-  });
-  silenceSlider.addEventListener('input', function() {
-    silenceVal.textContent = this.value;
-    this.setAttribute('aria-valuenow', this.value);
-    if (parseInt(this.value) >= 7) SilenceParticles.spawn(parseInt(this.value));
-  });
+  function bindSlider(slider, valueEl, onChange) {
+    if (!slider || !valueEl || slider.dataset.evBound === '1') return;
+    const syncValue = () => {
+      valueEl.textContent = slider.value;
+      slider.setAttribute('aria-valuenow', slider.value);
+      onChange?.(Number(slider.value));
+    };
+    slider.dataset.evBound = '1';
+    slider.addEventListener('input', syncValue);
+    slider.addEventListener('change', syncValue);
+    slider.addEventListener('pointerdown', () => { document.body.classList.add('slider-dragging'); });
+    slider.addEventListener('pointerup', () => { document.body.classList.remove('slider-dragging'); });
+    slider.addEventListener('pointercancel', () => { document.body.classList.remove('slider-dragging'); });
+    syncValue();
+  }
+
+  bindSlider(intensitySlider, intensityVal);
+  bindSlider(silenceSlider, silenceVal, (value) => { if (value >= 7) SilenceParticles.spawn(value); });
 
   function applyVoidState(next, opts={}) {
     const thoughtInput = getThoughtInput(); const voidToggle = getVoidToggle();
