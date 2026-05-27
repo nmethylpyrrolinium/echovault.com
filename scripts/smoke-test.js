@@ -25,6 +25,12 @@ const societySignalsEnd = societySignalsStart >= 0 ? script.indexOf('const Socie
 const societySignalsSource = societySignalsStart >= 0 && societySignalsEnd > societySignalsStart ? script.slice(societySignalsStart, societySignalsEnd) : '';
 
 const userAccessStart = script.indexOf('const UserAccess = (() => {');
+
+const voidStateStart = script.indexOf('function applyVoidState(next, opts={}) {');
+const voidStateEnd = voidStateStart >= 0 ? script.indexOf('function toggleVoid(){', voidStateStart) : -1;
+const voidStateSource = voidStateStart >= 0 && voidStateEnd > voidStateStart ? script.slice(voidStateStart, voidStateEnd) : '';
+if (!voidStateSource) failures.push('applyVoidState block missing');
+if (voidStateSource.includes("thoughtInput.value = ''")) failures.push('applyVoidState should not clear thoughtInput.value when toggling Void Entry');
 const userAccessEnd = userAccessStart >= 0 ? script.indexOf('const WrappedCinematicLoader', userAccessStart) : -1;
 const userAccessSource = userAccessStart >= 0 && userAccessEnd > userAccessStart ? script.slice(userAccessStart, userAccessEnd) : '';
 function funCardSource(fun) {

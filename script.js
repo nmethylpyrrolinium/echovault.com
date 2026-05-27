@@ -2305,7 +2305,6 @@ const EntryForm = (() => {
     voidToggle.setAttribute('aria-checked', String(voidMode));
     thoughtInput.disabled = voidMode; thoughtInput.style.opacity = voidMode ? '.3' : '1';
     thoughtInput.placeholder = voidMode ? 'No words, only feeling' : 'Let it be incomplete. Let it be honest.';
-    if (voidMode && !wasVoid) thoughtInput.value = '';
     if (!voidMode && wasVoid && opts.focus) thoughtInput.focus({preventScroll:true});
   }
   function toggleVoid(){ applyVoidState(!voidMode,{focus:true}); }
