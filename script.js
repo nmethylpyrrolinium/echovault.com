@@ -1497,81 +1497,737 @@ const Onboarding = (() => {
 /* ── COSMOS CANVAS ── */
 const Cosmos = (() => {
   const canvas = document.getElementById('cosmos-canvas');
-  const ctx    = canvas.getContext('2d');
-  let particles = [];
+  const ctx = canvas?.getContext('2d');
+  const hint = document.getElementById('universe-hint');
+  let dpr = 1;
+  let width = 0;
+  let height = 0;
+  let model = null;
+  let phase = 0;
+  let raf = null;
+  let lastBuildKey = '';
+  let lastLinkAt = 0;
+  let activeHintKey = '';
+  let lastHintAt = 0;
+  let pointer = { x: 0, y: 0, tx: 0, ty: 0, active: false, pulse: 0, pulseX: 0, pulseY: 0 };
+  let signature = 0;
 
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
+  const FAMILY_OFFSETS = {
+    calm:       { x: -0.24, y: -0.12, drift: 0.45, orbit: 0.0007, hue:'#5b8fa8' },
+    chaos:      { x:  0.24, y: -0.08, drift: 0.95, orbit: 0.0012, hue:'#c44b4b' },
+    reflective: { x: -0.16, y:  0.20, drift: 0.34, orbit: 0.00045, hue:'#7c6fa0' },
+    anxious:    { x:  0.18, y:  0.18, drift: 0.82, orbit: 0.0010, hue:'#c47a3a' },
+    joyful:     { x:  0.02, y: -0.24, drift: 0.58, orbit: 0.0008, hue:'#c9a84c' },
+    empty:      { x:  0.00, y:  0.28, drift: 0.22, orbit: 0.00032, hue:'#8b8c98' }
+  };
+
+  function hashString(value) {
+    let h = 2166136261;
+    const str = String(value ?? 'echo');
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
   }
 
-  function init() {
-    resize();
-    const max   = prefersReducedMotion() ? 0 : (isMobileViewport() ? 18 : 46);
-    const density = isMobileViewport() ? 36000 : 24000;
-    const count = Math.min(max, Math.floor(canvas.width * canvas.height / density));
-    particles   = [];
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.4 + .35,
-        vx:(Math.random()-.5) * .1,
-        vy:(Math.random()-.5) * .1,
-        a: Math.random() * .5 + .15,
-        c: ['#5b8fa8','#7c6fa0','#c9a84c','#7aab6e'][Math.floor(Math.random()*4)]
-      });
+  function seeded(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ (t >>> 15), 1 | t);
+      r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+      return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
+  function hexToRgb(hex) {
+    const clean = String(hex || '#c9a84c').replace('#', '');
+    const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0').slice(0, 6);
+    const num = parseInt(full, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function rgba(hex, alpha) {
+    const rgb = hexToRgb(hex);
+    return `rgba(${rgb.r},${rgb.g},${rgb.b},${clamp(alpha, 0, 1)})`;
+  }
+
+  function safeEchoDate(echo) {
+    const time = new Date(echo?.date || Date.now()).getTime();
+    return Number.isFinite(time) ? time : Date.now();
+  }
+
+  function echoAgeDays(echo) {
+    return Math.max(0, (Date.now() - safeEchoDate(echo)) / 86400000);
+  }
+
+  function thoughtLengthCategory(echo) {
+    if (echo?.void || !String(echo?.thought || '').trim()) return 'wordless';
+    const length = String(echo.thought).trim().length;
+    if (length < 42) return 'short';
+    if (length < 130) return 'medium';
+    return 'long';
+  }
+
+  function getFamilyCounts(echoes) {
+    return echoes.reduce((counts, echo) => {
+      const family = moodFamily(echo.mood);
+      counts[family] = (counts[family] || 0) + 1;
+      return counts;
+    }, {});
+  }
+
+  function getEmotionalWeather(echoes) {
+    const recent = echoes.slice(0, 9);
+    const counts = getFamilyCounts(recent);
+    const total = recent.length || 1;
+    const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'empty';
+    const averageIntensity = recent.reduce((sum, echo) => sum + Number(echo.intensity || 5), 0) / total;
+    const averageSilence = recent.reduce((sum, echo) => sum + Number(echo.silence || 5), 0) / total;
+    const families = recent.map(echo => moodFamily(echo.mood));
+    const switches = families.slice(1).filter((family, index) => family !== families[index]).length;
+    const volatility = recent.length > 1 ? switches / (recent.length - 1) : 0;
+    const quietShare = recent.filter(echo => Number(echo.silence || 0) >= 7 || moodFamily(echo.mood) === 'empty').length / total;
+    const warmShare = recent.filter(echo => moodFamily(echo.mood) === 'joyful').length / total;
+    const stormShare = recent.filter(echo => ['chaos','anxious'].includes(moodFamily(echo.mood))).length / total;
+    let trend = 'unopened';
+    if (!recent.length) trend = 'unopened';
+    else if (quietShare >= 0.55) trend = 'sparse';
+    else if (stormShare >= 0.5 || volatility > 0.62) trend = 'fragmented';
+    else if (warmShare >= 0.34) trend = 'warm';
+    else if (['calm','reflective'].includes(dominant)) trend = 'slow';
+    else trend = 'mixed';
+    return { dominant, counts, averageIntensity, averageSilence, volatility, quietShare, warmShare, stormShare, trend };
+  }
+
+  function getUniverseStage(echoCount) {
+    if (echoCount === 0) return 'empty';
+    if (echoCount === 1) return 'single';
+    if (echoCount < 5) return 'early';
+    return 'formed';
+  }
+
+  function getSeededPosition(echo, index, context) {
+    const family = moodFamily(echo.mood);
+    const offset = FAMILY_OFFSETS[family] || FAMILY_OFFSETS.reflective;
+    const seed = hashString(`${echo.id || echo.date || index}:${echo.mood}:${safeEchoDate(echo)}`);
+    const rand = seeded(seed);
+    const age = echoAgeDays(echo);
+    const older = clamp(age / 120, 0, 1);
+    const silence = clamp(Number(echo.silence || 5), 0, 10);
+    const familyIndex = context.familySeen[family] || 0;
+    context.familySeen[family] = familyIndex + 1;
+    const familyCount = Math.max(1, context.familyCounts[family] || 1);
+    const repeated = clamp((familyCount - 1) / 5, 0, 1);
+    const mixedScatter = clamp(context.weather.volatility * 0.16, 0, 0.16);
+    const centralPull = context.stage === 'single' ? 0 : repeated * 0.07;
+    const baseCenterX = context.stage === 'single' ? width * 0.5 : width * (0.5 + offset.x * (context.stage === 'formed' ? 1 : 0.5 - centralPull));
+    const baseCenterY = context.stage === 'single' ? height * 0.52 : height * (0.52 + offset.y * (context.stage === 'formed' ? 1 : 0.45 - centralPull));
+    const angle = (familyIndex / familyCount) * Math.PI * 2 + rand() * 0.55 + index * 0.18;
+    const silenceDistance = (silence / 10) * Math.min(width, height) * 0.18;
+    const ageDistance = older * Math.min(width, height) * 0.26;
+    const clusterRadius = context.stage === 'single'
+      ? 0
+      : Math.min(width, height) * (0.065 + familyIndex * 0.012 + mixedScatter + (1 - repeated) * 0.035) + silenceDistance + ageDistance;
+    return {
+      seed,
+      rand,
+      x: baseCenterX + Math.cos(angle) * clusterRadius + (rand() - 0.5) * Math.min(width, height) * 0.035,
+      y: baseCenterY + Math.sin(angle) * clusterRadius * 0.72 + (rand() - 0.5) * Math.min(width, height) * 0.035,
+      angle,
+      older,
+      familyIndex,
+      familyCount,
+      repeated
+    };
+  }
+
+  function describeMemory(body) {
+    if (body.dormant) return 'unopened vault star';
+    const ageText = body.age < 1 ? 'today' : body.age < 2 ? 'yesterday' : `${Math.round(body.age)} days old`;
+    const words = body.thoughtCategory === 'wordless' ? 'wordless' : `${body.thoughtCategory} words`;
+    return `${body.echo.mood} · intensity ${body.intensity}/10 · silence ${body.silence}/10 · ${ageText} · ${words}`;
+  }
+
+  function buildUniverseEchoObject(echo, index, context) {
+    const family = moodFamily(echo.mood);
+    const color = MOOD_COLORS[echo.mood] || MOOD_COLORS[family] || FAMILY_OFFSETS[family]?.hue || '#c9a84c';
+    const intensity = clamp(Number(echo.intensity || 5), 1, 10);
+    const silence = clamp(Number(echo.silence || 5), 0, 10);
+    const age = echoAgeDays(echo);
+    const recency = clamp(1 - index / 10, 0, 1);
+    const thoughtCategory = thoughtLengthCategory(echo);
+    const position = getSeededPosition(echo, index, context);
+    const coldDistance = silence / 10;
+    const ageFade = clamp(age / 180, 0, 0.46);
+    const repeatedGlow = clamp((context.familyCounts[family] || 1) / Math.max(1, context.echoes.length), 0, 1) * 0.08;
+    const ringCount = thoughtCategory === 'long' ? 3 : thoughtCategory === 'medium' ? 2 : thoughtCategory === 'short' ? 1 : 0;
+    const baseRadius = (isMobileViewport() ? 2.4 : 3.0) + intensity * (isMobileViewport() ? 0.48 : 0.62) + recency * 1.2;
+    return {
+      type: 'echo',
+      echo,
+      id: String(echo.id || echo.date || index),
+      family,
+      color,
+      intensity,
+      silence,
+      age,
+      recency,
+      thoughtCategory,
+      ringCount,
+      x: position.x,
+      y: position.y,
+      baseX: position.x,
+      baseY: position.y,
+      vx: 0,
+      vy: 0,
+      r: baseRadius * (1 - coldDistance * 0.24),
+      alpha: clamp(0.70 - coldDistance * 0.28 - ageFade + recency * 0.14, 0.10, 0.88),
+      glow: clamp(0.12 + intensity * 0.025 + recency * 0.10 + repeatedGlow - coldDistance * 0.06, 0.04, 0.48),
+      gravity: clamp(0.08 + intensity * 0.026 - silence * 0.008, 0.02, 0.36),
+      drift: (FAMILY_OFFSETS[family]?.drift || 0.5) * (1 - coldDistance * 0.18),
+      orbit: FAMILY_OFFSETS[family]?.orbit || 0.0006,
+      depth: clamp(0.42 + (1 - coldDistance) * 0.28 + recency * 0.2 - position.older * 0.18, 0.18, 0.96),
+      phase: position.rand() * Math.PI * 2,
+      hovered: 0,
+      pull: 0,
+      descriptor: describeMemory,
+      visualReason: [
+        `mood family: ${family}`,
+        `intensity sets size (${intensity}/10)`,
+        `silence sets distance (${silence}/10)`,
+        `thought texture: ${thoughtCategory}`
+      ]
+    };
+  }
+
+  function makeDormantBody(index, count, weather) {
+    const seed = hashString(`unopened-vault:${index}:${weather.trend}:${width}x${height}`);
+    const rand = seeded(seed);
+    const ring = index / Math.max(1, count - 1);
+    const theta = ring * Math.PI * 4.6 + rand() * 0.45;
+    const radius = Math.min(width, height) * (0.18 + ring * 0.36);
+    const family = index % 3 === 0 ? 'empty' : index % 3 === 1 ? 'reflective' : 'calm';
+    const color = MOOD_COLORS[family] || '#8b8c98';
+    return {
+      type: 'dormant', dormant: true, id:`dormant-${index}`, family, color,
+      x: width * 0.5 + Math.cos(theta) * radius,
+      y: height * 0.53 + Math.sin(theta) * radius * 0.62,
+      baseX: width * 0.5 + Math.cos(theta) * radius,
+      baseY: height * 0.53 + Math.sin(theta) * radius * 0.62,
+      vx: 0, vy: 0,
+      r: 1.2 + ring * 1.9,
+      alpha: 0.08 + (1 - ring) * 0.09,
+      glow: 0.04 + (1 - ring) * 0.025,
+      intensity: 1,
+      silence: 10,
+      age: 999,
+      recency: 0,
+      thoughtCategory: 'wordless',
+      ringCount: 0,
+      gravity: 0,
+      drift: 0.14,
+      orbit: 0.00018,
+      depth: 0.18 + (1 - ring) * 0.38,
+      phase: rand() * Math.PI * 2,
+      hovered: 0,
+      pull: 0
+    };
+  }
+
+  function scoreEchoSimilarity(a, b) {
+    if (!a?.echo || !b?.echo) return { score: 0, reasons: [] };
+    const reasons = [];
+    let score = 0;
+    if (a.echo.mood === b.echo.mood) { score += 0.34; reasons.push(`same mood: ${a.echo.mood}`); }
+    else if (a.family === b.family) { score += 0.22; reasons.push(`same mood family: ${a.family}`); }
+    const intensityGap = Math.abs(a.intensity - b.intensity);
+    if (intensityGap <= 2) { score += 0.16; reasons.push('similar intensity'); }
+    else if (intensityGap <= 4) score += 0.07;
+    const silenceGap = Math.abs(a.silence - b.silence);
+    if (silenceGap <= 2) { score += 0.16; reasons.push('similar silence'); }
+    else if (silenceGap <= 4) score += 0.07;
+    const daysGap = Math.abs(safeEchoDate(a.echo) - safeEchoDate(b.echo)) / 86400000;
+    if (daysGap <= 3) { score += 0.08; reasons.push('nearby in time'); }
+    else if (daysGap <= 14) score += 0.04;
+    if ((a.echo.void || !a.echo.thought) && (b.echo.void || !b.echo.thought)) { score += 0.06; reasons.push('both wordless'); }
+    if (a.thoughtCategory === b.thoughtCategory && a.thoughtCategory !== 'wordless') { score += 0.05; reasons.push(`both ${a.thoughtCategory} reflections`); }
+    const seasonA = getEmotionalSeason([a.echo]);
+    const seasonB = getEmotionalSeason([b.echo]);
+    if (seasonA?.title && seasonA.title === seasonB?.title) { score += 0.04; reasons.push(`same season: ${seasonA.title}`); }
+    return { score: clamp(score, 0, 1), reasons };
+  }
+
+  function buildConstellationLinks(objects, stage) {
+    if (stage === 'empty') return [];
+    const threshold = stage === 'early' ? 0.42 : 0.38;
+    const maxLinks = stage === 'single' ? 0 : (isMobileViewport() ? 12 : 28);
+    const candidates = [];
+    for (let i = 0; i < objects.length; i++) {
+      for (let j = i + 1; j < objects.length; j++) {
+        const a = objects[i], b = objects[j];
+        if (!a.echo || !b.echo) continue;
+        const similarity = scoreEchoSimilarity(a, b);
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const maxDistance = a.family === b.family ? (isMobileViewport() ? 230 : 320) : (isMobileViewport() ? 140 : 205);
+        if (similarity.score < threshold || dist > maxDistance) continue;
+        candidates.push({ a, b, dist, strength: similarity.score, reasons: similarity.reasons, phase: (a.phase + b.phase) / 2 });
+      }
     }
+    return candidates.sort((a, b) => (b.strength - a.strength) || (a.dist - b.dist)).slice(0, maxLinks);
+  }
+
+  function buildUniverseDust(nextModel) {
+    const stageBase = { empty: 12, single: 14, early: 18, formed: 24 }[nextModel.stage] || 16;
+    const weatherBoost = nextModel.weather.trend === 'fragmented' ? 5 : nextModel.weather.trend === 'sparse' ? -4 : nextModel.weather.trend === 'warm' ? 3 : 0;
+    const seasonBoost = nextModel.season?.confidence ? Math.round(nextModel.season.confidence * 6) : 0;
+    const count = clamp(stageBase + weatherBoost + seasonBoost, 8, isMobileViewport() ? 28 : 44);
+    const dominantFamilies = Object.entries(nextModel.familyCounts).sort((a, b) => b[1] - a[1]).map(([family]) => family);
+    return Array.from({ length: count }, (_, index) => {
+      const family = dominantFamilies[index % Math.max(1, dominantFamilies.length)] || nextModel.weather.dominant || 'empty';
+      const seed = hashString(`dust:${family}:${nextModel.stage}:${index}:${nextModel.echoes.length}:${nextModel.season?.title || ''}`);
+      const rand = seeded(seed);
+      const depth = 0.2 + rand() * 0.8;
+      return {
+        x: rand() * width,
+        y: rand() * height,
+        r: 0.35 + depth * 1.2,
+        a: 0.035 + depth * 0.08 + (nextModel.stage === 'empty' ? 0.035 : 0),
+        depth,
+        family,
+        color: MOOD_COLORS[family] || FAMILY_OFFSETS[family]?.hue || '#c9a84c',
+        drift: (nextModel.weather.trend === 'fragmented' ? 0.04 : 0.018) * (rand() > 0.5 ? 1 : -1),
+        phase: rand() * Math.PI * 2
+      };
+    });
+  }
+
+  function buildUniverseEchoModel(echoes) {
+    const safeEchoes = Array.isArray(echoes) ? echoes.slice(0, isMobileViewport() ? 30 : 64) : [];
+    const stage = getUniverseStage(safeEchoes.length);
+    const weather = getEmotionalWeather(safeEchoes);
+    const season = getEmotionalSeason(safeEchoes);
+    const patterns = PatternEngine.analyze(safeEchoes);
+    const archetype = ArchetypeEngine.compute(patterns);
+    const familyCounts = getFamilyCounts(safeEchoes);
+    const context = { echoes: safeEchoes, stage, weather, season, patterns, archetype, familyCounts, familySeen: {} };
+    const activeObjects = safeEchoes.map((echo, index) => buildUniverseEchoObject(echo, index, context));
+    const dormantCount = stage === 'empty' ? (isMobileViewport() ? 12 : 20) : stage === 'single' ? 10 : stage === 'early' ? 6 : 3;
+    const dormantObjects = Array.from({ length: dormantCount }, (_, index) => makeDormantBody(index, dormantCount, weather));
+    const nextModel = { stage, echoes: safeEchoes, objects: activeObjects.concat(dormantObjects), activeObjects, dormantObjects, links: [], dust: [], weather, season, patterns, archetype, familyCounts };
+    nextModel.links = buildConstellationLinks(activeObjects, stage);
+    nextModel.dust = buildUniverseDust(nextModel);
+    return nextModel;
+  }
+
+  function resize() {
+    if (!canvas || !ctx) return;
+    dpr = Math.min(window.devicePixelRatio || 1, isMobileViewport() ? 1.25 : 1.6);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    build(true);
+  }
+
+  function modelKey(echoes) {
+    const summary = echoes.slice(0, isMobileViewport() ? 30 : 64).map(echo => [echo.id, echo.date, echo.mood, echo.intensity, echo.silence, thoughtLengthCategory(echo)].join(':')).join('|');
+    return `${width}x${height}:${prefersReducedMotion()}:${summary}`;
+  }
+
+  function build(force = false) {
+    if (!canvas || !ctx || !width || !height) return;
+    const echoes = Array.isArray(state.echoes) ? state.echoes : [];
+    const key = modelKey(echoes);
+    if (!force && key === lastBuildKey) return;
+    lastBuildKey = key;
+    model = buildUniverseEchoModel(echoes);
+    updateAtmosphereDom(model);
+    renderStaticIfNeeded();
+  }
+
+  function updateAtmosphereDom(nextModel) {
+    const profile = nextModel.weather;
+    document.body?.setAttribute('data-universe-weather', profile.dominant);
+    document.body?.setAttribute('data-universe-stage', nextModel.stage);
+    document.body?.classList.toggle('universe-empty', nextModel.stage === 'empty');
+    document.body?.style.setProperty('--universe-mood-color', MOOD_COLORS[profile.dominant] || '#c9a84c');
+    document.body?.style.setProperty('--universe-haze-strength', String(clamp(0.10 + profile.averageIntensity * 0.016 + profile.averageSilence * 0.006 + profile.volatility * 0.05, 0.11, 0.34)));
+    const whisper = document.getElementById('universe-whisper');
+    if (whisper) {
+      if (nextModel.stage === 'empty') whisper.textContent = 'unopened vault · dormant stars only';
+      else if (nextModel.stage === 'single') whisper.textContent = 'one echo has found its first orbit';
+      else if (nextModel.stage === 'early') whisper.textContent = `${nextModel.echoes.length} echoes · constellation seeds forming`;
+      else whisper.textContent = `${nextModel.echoes.length} echoes · ${nextModel.season.title.toLowerCase()} · ${profile.dominant} weather`;
+    }
+    setLiveSummary('universe-sr-summary', nextModel.echoes.length
+      ? `Universe visualization with ${nextModel.echoes.length} echoes. Recent echoes lean ${profile.dominant}. Current season: ${nextModel.season.title}.`
+      : 'Empty universe visualization with theme-only dormant stars and no personal pattern claims yet.');
+  }
+
+  function recomputeLinks(force = false) {
+    if (!model) return;
+    const now = performance.now();
+    if (!force && now - lastLinkAt < 900) return;
+    lastLinkAt = now;
+    model.links = buildConstellationLinks(model.activeObjects, model.stage);
+  }
+
+  function applyEmotionalGravity() {
+    if (prefersReducedMotion() || !model || model.stage === 'empty') return;
+    const gravityBodies = model.activeObjects.slice(0, isMobileViewport() ? 22 : 42);
+    gravityBodies.forEach((body) => { body.pull *= 0.92; });
+    model.links.forEach((link) => {
+      const a = link.a, b = link.b;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distSq = dx * dx + dy * dy + 100;
+      const force = clamp(link.strength * (a.gravity + b.gravity) * 0.000018 / Math.max(0.2, distSq / 22000), 0, 0.012);
+      a.vx += dx * force; a.vy += dy * force;
+      b.vx -= dx * force; b.vy -= dy * force;
+      a.pull += link.strength * 0.004; b.pull += link.strength * 0.004;
+    });
+    const dominant = model.weather.dominant;
+    const basin = FAMILY_OFFSETS[dominant] || FAMILY_OFFSETS.reflective;
+    const basinX = width * (0.5 + basin.x * 0.55);
+    const basinY = height * (0.52 + basin.y * 0.55);
+    gravityBodies.filter(body => body.family === dominant).forEach((body) => {
+      body.vx += (basinX - body.x) * 0.000015 * body.gravity;
+      body.vy += (basinY - body.y) * 0.000015 * body.gravity;
+    });
+  }
+
+  function drawBackground() {
+    if (!model) return;
+    const profile = model.weather;
+    ctx.clearRect(0, 0, width, height);
+    const color = MOOD_COLORS[profile.dominant] || model.season?.color || '#c9a84c';
+    const pulse = profile.trend === 'warm' ? Math.sin(phase * 0.6) * 0.01 : 0;
+    const horizon = ctx.createRadialGradient(width * 0.5 + pointer.x * 14, height * 0.58 + pointer.y * 9, 0, width * 0.5, height * 0.56, Math.max(width, height) * 0.72);
+    horizon.addColorStop(0, rgba(color, 0.026 + profile.averageIntensity * 0.003 + pulse));
+    horizon.addColorStop(0.48, rgba(model.season?.color || '#c9a84c', 0.014 + (model.season?.confidence || 0) * 0.012));
+    horizon.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = horizon;
+    ctx.fillRect(0, 0, width, height);
+
+    const auroraAlpha = profile.trend === 'sparse' ? 0.008 : profile.trend === 'fragmented' ? 0.016 : 0.02;
+    const aurora = ctx.createLinearGradient(0, height * (0.2 + Math.sin(phase * 0.18) * 0.03), width, height * (0.55 + Math.cos(phase * 0.12) * 0.03));
+    aurora.addColorStop(0, 'rgba(0,0,0,0)');
+    aurora.addColorStop(0.46, rgba(color, auroraAlpha));
+    aurora.addColorStop(0.62, rgba('#ffffff', 0.005));
+    aurora.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aurora;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function renderUniverseDust() {
+    if (!model) return;
+    model.dust.forEach((p, index) => {
+      const fragmented = model.weather.trend === 'fragmented' ? Math.sin(phase * 1.8 + p.phase) * 0.7 : 0;
+      p.x += p.drift + pointer.x * 0.009 * p.depth + fragmented * 0.01;
+      p.y += Math.sin(phase * 0.22 + p.phase) * 0.014 + pointer.y * 0.007 * p.depth;
+      if (p.x < -12) p.x = width + 12;
+      if (p.x > width + 12) p.x = -12;
+      if (p.y < -12) p.y = height + 12;
+      if (p.y > height + 12) p.y = -12;
+      const alpha = p.a * (0.72 + Math.sin(phase * 0.42 + index) * 0.18) * (model.stage === 'empty' ? 1.35 : 1);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(p.color, alpha);
+      ctx.fill();
+    });
+  }
+
+  function renderConstellationLinks() {
+    if (!model) return;
+    const brightness = model.stage === 'early' ? 0.72 : 1;
+    model.links.forEach((link, index) => {
+      const weatherFlicker = model.weather.trend === 'fragmented' ? 0.74 + Math.sin(phase * 4.2 + index) * 0.15 : 1;
+      const pulse = 0.58 + Math.sin(phase * 0.55 + link.phase + index * 0.3) * 0.28;
+      const alpha = clamp(link.strength * 0.13 * pulse * weatherFlicker * brightness, 0.012, 0.15);
+      const color = link.a.family === link.b.family ? link.a.color : model.season?.color || '#c9a84c';
+      const grad = ctx.createLinearGradient(link.a.x, link.a.y, link.b.x, link.b.y);
+      grad.addColorStop(0, rgba(color, 0));
+      grad.addColorStop(0.5, rgba(color, alpha));
+      grad.addColorStop(1, rgba(color, 0));
+      ctx.beginPath();
+      ctx.moveTo(link.a.x, link.a.y);
+      const bend = Math.sin(phase * 0.32 + index) * (6 + link.strength * 6);
+      ctx.quadraticCurveTo((link.a.x + link.b.x) / 2 + bend, (link.a.y + link.b.y) / 2 - bend, link.b.x, link.b.y);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 0.45 + link.strength * 0.55;
+      ctx.stroke();
+    });
+  }
+
+  function renderUniverseOrbs() {
+    if (!model) return;
+    model.objects.forEach((body, index) => {
+      const recentPulse = body.recency > 0.7 ? Math.sin(phase * (0.9 + body.intensity * 0.035) + body.phase) * body.recency * body.intensity * 0.018 : 0;
+      const trendPulse = model.weather.trend === 'warm' && body.family === 'joyful' ? Math.sin(phase * 0.72 + body.phase) * 0.12 : 0;
+      const tremor = ['anxious','chaos'].includes(body.family) ? Math.sin(phase * (body.family === 'chaos' ? 4.8 : 5.6) + body.phase) * 0.06 : 0;
+      const radius = Math.max(0.7, body.r * (1 + recentPulse + trendPulse + body.hovered * 0.18));
+      const alpha = clamp(body.alpha + body.hovered * 0.18 + tremor - body.silence * 0.006, 0.035, 0.86);
+      const glowRadius = radius * (5.0 + body.intensity * 0.32 + body.hovered * 2.2 + body.pull * 18);
+      const glow = ctx.createRadialGradient(body.x, body.y, 0, body.x, body.y, glowRadius);
+      glow.addColorStop(0, rgba(body.color, body.glow + body.hovered * 0.15));
+      glow.addColorStop(0.34, rgba(body.color, body.glow * 0.34));
+      glow.addColorStop(1, rgba(body.color, 0));
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(body.x, body.y, glowRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(body.x, body.y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(body.color, alpha);
+      ctx.fill();
+
+      for (let ring = 0; ring < body.ringCount; ring++) {
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, radius * (1.9 + ring * 0.62 + Math.sin(phase * 0.45 + body.phase + ring) * 0.05), 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(body.color, 0.055 + body.hovered * 0.06 + body.recency * 0.015);
+        ctx.lineWidth = 0.55;
+        ctx.stroke();
+      }
+
+      if (!body.dormant && (body.hovered > 0.04 || body.recency > 0.82)) {
+        ctx.beginPath();
+        ctx.arc(body.x, body.y, radius * (2.5 + Math.sin(phase + index) * 0.24), 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(body.color, body.hovered * 0.18 + body.recency * 0.035);
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+      }
+    });
+  }
+
+  function drawPointerPulse() {
+    if (pointer.pulse <= 0.01) return;
+    const radius = (1 - pointer.pulse) * (isMobileViewport() ? 90 : 150) + 14;
+    ctx.beginPath();
+    ctx.arc(pointer.pulseX, pointer.pulseY, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(201,168,76,${pointer.pulse * 0.16})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    pointer.pulse *= 0.94;
+  }
+
+  function updateUniverseObjects() {
+    if (!model) return;
+    pointer.x += (pointer.tx - pointer.x) * 0.045;
+    pointer.y += (pointer.ty - pointer.y) * 0.045;
+    applyEmotionalGravity();
+    model.objects.forEach((body) => {
+      const dxp = pointer.pulseX - body.x;
+      const dyp = pointer.pulseY - body.y;
+      const dist = Math.sqrt(dxp * dxp + dyp * dyp);
+      body.hovered += ((pointer.active && dist < Math.max(42, body.r * 6) ? 1 : 0) - body.hovered) * 0.08;
+      const orbitScale = model.weather.trend === 'sparse' ? 0.52 : model.weather.trend === 'fragmented' ? 1.22 : model.weather.trend === 'slow' ? 0.72 : 1;
+      const angle = phase * body.orbit * 60 * orbitScale + body.phase;
+      const driftX = Math.cos(angle) * (7 + body.depth * 15) + pointer.x * (8 + body.depth * 9);
+      const driftY = Math.sin(angle * 0.82) * (5 + body.depth * 10) + pointer.y * (5 + body.depth * 7);
+      const homeX = body.baseX + driftX;
+      const homeY = body.baseY + driftY;
+      body.vx += (homeX - body.x) * 0.0007;
+      body.vy += (homeY - body.y) * 0.0007;
+      if (body.family === 'chaos') body.vx += Math.sin(phase * 2.7 + body.phase) * 0.0015;
+      if (body.family === 'anxious') body.vx += Math.sin(phase * 5.1 + body.phase) * 0.001;
+      body.vx *= 0.982;
+      body.vy *= 0.982;
+      body.x += body.vx * body.drift + pointer.x * 0.004 * body.depth;
+      body.y += body.vy * body.drift + pointer.y * 0.003 * body.depth;
+    });
+  }
+
+  function renderStaticIfNeeded() {
+    if (!prefersReducedMotion() || !ctx || !width || !height || !model) return;
+    drawBackground();
+    renderConstellationLinks();
+    renderUniverseOrbs();
+    renderUniverseDust();
   }
 
   function draw() {
-    if (prefersReducedMotion()) return;
-    if (state.tabHidden) { setTimeout(() => requestAnimationFrame(draw), 300); return; }
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const cellSize = 100;
-    const grid = {};
-    particles.forEach((p, i) => {
-      p.x = (p.x + p.vx + canvas.width)  % canvas.width;
-      p.y = (p.y + p.vy + canvas.height) % canvas.height;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-      ctx.fillStyle = p.c + Math.floor(p.a*255).toString(16).padStart(2,'0');
-      ctx.fill();
-      const gx = Math.floor(p.x / cellSize), gy = Math.floor(p.y / cellSize);
-      for (let dx=-1;dx<=1;dx++) for (let dy=-1;dy<=1;dy++) {
-        const key = `${gx+dx},${gy+dy}`;
-        if (!grid[key]) grid[key] = [];
-        grid[key].push(i);
+    if (raf) cancelAnimationFrame(raf);
+    const loop = () => {
+      build(false);
+      if (!model) return;
+      if (prefersReducedMotion()) { renderStaticIfNeeded(); raf = null; return; }
+      if (state.tabHidden) { raf = setTimeout(() => requestAnimationFrame(loop), 360); return; }
+      phase += 0.010 + clamp(model.weather.averageIntensity * 0.0007 + model.weather.volatility * 0.004, 0, 0.012);
+      if (signature > 0) signature *= 0.965;
+      recomputeLinks(false);
+      drawBackground();
+      updateUniverseObjects();
+      renderUniverseDust();
+      renderConstellationLinks();
+      renderUniverseOrbs();
+      drawPointerPulse();
+      if (signature > 0.02) {
+        ctx.beginPath();
+        ctx.arc(width * 0.5, height * 0.52, (1 - signature) * Math.min(width, height) * 0.42 + 40, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(201,168,76,${signature * 0.09})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
       }
-    });
-
-    const checked = new Set();
-    particles.forEach((p1, i) => {
-      const gx = Math.floor(p1.x / cellSize), gy = Math.floor(p1.y / cellSize);
-      const nearby = grid[`${gx},${gy}`] || [];
-      nearby.forEach(j => {
-        if (j <= i) return;
-        const pk = i + '_' + j;
-        if (checked.has(pk)) return;
-        checked.add(pk);
-        const p2 = particles[j];
-        const dx = p1.x - p2.x, dy = p1.y - p2.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 100) {
-          const a = (1 - dist/100) * .05;
-          ctx.beginPath();
-          ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
-          ctx.strokeStyle = `rgba(201,168,76,${a})`;
-          ctx.lineWidth = .4; ctx.stroke();
-        }
-      });
-    });
-
-    requestAnimationFrame(draw);
+      raf = requestAnimationFrame(loop);
+    };
+    loop();
   }
 
-  return {init, draw, resize};
+  function findNearestBody(x, y) {
+    if (!model) return null;
+    let best = null;
+    model.objects.forEach((body) => {
+      const dx = body.x - x, dy = body.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const radius = Math.max(34, body.r * 7);
+      if (dist <= radius && (!best || dist < best.dist)) best = { body, dist };
+    });
+    return best;
+  }
+
+  function distanceToSegment(px, py, ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy || 1;
+    const t = clamp(((px - ax) * dx + (py - ay) * dy) / lenSq, 0, 1);
+    const x = ax + t * dx, y = ay + t * dy;
+    return Math.sqrt((px - x) ** 2 + (py - y) ** 2);
+  }
+
+  function findNearestLink(x, y) {
+    if (!model) return null;
+    let best = null;
+    model.links.forEach((link) => {
+      const dist = distanceToSegment(x, y, link.a.x, link.a.y, link.b.x, link.b.y);
+      if (dist < 16 && (!best || dist < best.dist)) best = { link, dist };
+    });
+    return best;
+  }
+
+  function hintPoem(body) {
+    if (body.dormant) {
+      if (model?.stage === 'empty') return 'No personal pattern yet — just an unopened vault sky.';
+      return 'A quiet background star; not a personal echo.';
+    }
+    if (body.silence >= 8) return 'farther because silence is high';
+    if (body.intensity >= 8) return 'larger because intensity is high';
+    if (body.recency > 0.75) return 'glowing because it is recent';
+    if (body.ringCount >= 2) return 'haloed because the reflection carried more words';
+    return 'held in orbit by its mood and silence';
+  }
+
+  function showHint(x, y, html, key) {
+    if (!hint) return;
+    activeHintKey = key;
+    hint.innerHTML = html;
+    hint.style.left = `${clamp(x + 18, 12, width - 260)}px`;
+    hint.style.top = `${clamp(y + 18, 84, height - 130)}px`;
+    hint.classList.add('visible');
+  }
+
+  function hideHint() {
+    if (!hint) return;
+    activeHintKey = '';
+    hint.classList.remove('visible');
+  }
+
+  function updateHintFromPointer(x, y) {
+    if (state.currentView !== 'home') { hideHint(); return; }
+    const now = performance.now();
+    if (now - lastHintAt < 80) return;
+    lastHintAt = now;
+    const nearestBody = findNearestBody(x, y);
+    if (nearestBody) {
+      const body = nearestBody.body;
+      const key = `body:${body.id}`;
+      if (key !== activeHintKey) {
+        showHint(x, y, `<strong>${escapeHTML(body.dormant ? 'Dormant star' : body.echo.mood)}</strong><span>${escapeHTML(body.dormant ? hintPoem(body) : describeMemory(body))}</span><small>${escapeHTML(hintPoem(body))}</small>`, key);
+      } else if (hint) {
+        hint.style.left = `${clamp(x + 18, 12, width - 260)}px`;
+        hint.style.top = `${clamp(y + 18, 84, height - 130)}px`;
+      }
+      return;
+    }
+    const nearestLink = findNearestLink(x, y);
+    if (nearestLink) {
+      const link = nearestLink.link;
+      const key = `link:${link.a.id}:${link.b.id}`;
+      const reason = link.reasons.slice(0, 3).join(' + ') || 'shared emotional shape';
+      if (key !== activeHintKey) showHint(x, y, `<strong>Connected echoes</strong><span>${escapeHTML(reason)}</span><small>similarity ${Math.round(link.strength * 100)}%</small>`, key);
+      return;
+    }
+    hideHint();
+  }
+
+  function pulse(x = width * 0.5, y = height * 0.52, strength = 1) {
+    pointer.pulseX = x;
+    pointer.pulseY = y;
+    pointer.pulse = Math.max(pointer.pulse, Math.min(1, strength));
+    signature = Math.max(signature, 0.85 * strength);
+    model?.objects.forEach((body) => {
+      const dx = body.x - x;
+      const dy = body.y - y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      if (dist < 260) {
+        body.vx += (dx / dist) * 0.18 * strength;
+        body.vy += (dy / dist) * 0.18 * strength;
+        body.hovered = Math.max(body.hovered, 0.35 * strength);
+      }
+    });
+    renderStaticIfNeeded();
+  }
+
+  function handlePointerDown(event) {
+    if (state.currentView !== 'home') return;
+    if (event.target?.closest?.('button,a,input,textarea,select,[role="button"]')) return;
+    const x = event.clientX || width * 0.5;
+    const y = event.clientY || height * 0.5;
+    pulse(x, y, 0.55);
+    updateHintFromPointer(x, y);
+    const nearest = findNearestBody(x, y);
+    if (nearest?.body?.echo && nearest.dist < Math.max(30, nearest.body.r * 5)) {
+      window.setTimeout(() => Timeline?.openDetail?.(nearest.body.echo), prefersReducedMotion() ? 0 : 120);
+    }
+  }
+
+  function init() {
+    if (!canvas || !ctx) return;
+    resize();
+    build(true);
+    const move = (event) => {
+      const point = event.touches?.[0] || event;
+      const x = point.clientX || width * 0.5;
+      const y = point.clientY || height * 0.5;
+      pointer.tx = (x / Math.max(1, width) - 0.5) * 2;
+      pointer.ty = (y / Math.max(1, height) - 0.5) * 2;
+      pointer.active = true;
+      pointer.pulseX = x;
+      pointer.pulseY = y;
+      updateHintFromPointer(x, y);
+    };
+    const leave = () => { pointer.active = false; pointer.tx *= 0.2; pointer.ty *= 0.2; hideHint(); };
+    bindOnce(window, 'pointermove', move, { passive: true }, 'cosmos:pointermove');
+    bindOnce(window, 'pointerdown', handlePointerDown, { passive: true }, 'cosmos:pointerdown');
+    bindOnce(window, 'touchmove', move, { passive: true }, 'cosmos:touchmove');
+    bindOnce(window, 'pointerleave', leave, { passive: true }, 'cosmos:pointerleave');
+  }
+
+  function refresh() {
+    lastBuildKey = '';
+    build(true);
+    pulse(width * 0.5, height * 0.52, 0.75);
+  }
+
+  return {init, draw, resize, refresh, pulse, buildUniverseEchoModel, scoreEchoSimilarity, getEmotionalWeather};
 })();
 
 /* ── RIPPLE CANVAS ── */
@@ -2604,7 +3260,7 @@ const Timeline = (() => {
     setTimeout(() => document.getElementById('detail-close-btn')?.focus(), 40);
   }
 
-  return {render};
+  return {render, openDetail};
 })();
 
 /* ── WRAPPED ── */
@@ -5254,7 +5910,7 @@ function formatDateShort(iso) {
 /* ── WIRE EVENTS ── */
 bindOnce(document.getElementById('nav-logo-btn'), 'click', e => { e.preventDefault(); Nav.show('home'); }, undefined, 'wire:nav-logo');
 bindOnce(document.getElementById('home-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:home-create');
-bindOnce(document.getElementById('home-enter-btn'), 'click',  () => Nav.show('timeline'), undefined, 'wire:home-enter');
+bindOnce(document.getElementById('home-enter-btn'), 'click',  () => { Cosmos.pulse(window.innerWidth/2, window.innerHeight*.52, 1); document.getElementById('view-home')?.classList.add('entering-universe'); setTimeout(() => { document.getElementById('view-home')?.classList.remove('entering-universe'); Nav.show('timeline'); }, prefersReducedMotion() ? 0 : 420); }, undefined, 'wire:home-enter');
 bindOnce(document.getElementById('timeline-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:timeline-create');
 bindOnce(document.getElementById('wrapped-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:wrapped-create');
 bindOnce(document.getElementById('view-uni-btn'), 'click', () => Nav.show('timeline'), undefined, 'wire:view-uni');
@@ -5381,6 +6037,7 @@ function refreshEchoDependentUI() {
   Weather.update();
   IdentityOrb.update();
   IdentityCore.update();
+  Cosmos.refresh();
   GhostLayer.initFromEchoes(state.echoes);
 
   if (state.currentView === 'timeline') {
@@ -5522,7 +6179,7 @@ bindOnce(document, 'keydown', e => {
   }
 }, undefined, 'wire:global-escape-close');
 
-bindOnce(document, 'visibilitychange', () => { state.tabHidden = document.hidden; if (document.hidden) ConnectionCanvas.stop(); else if (state.currentView === 'timeline') ConnectionCanvas.render(); }, undefined, 'wire:visibility');
+bindOnce(document, 'visibilitychange', () => { state.tabHidden = document.hidden; if (document.hidden) ConnectionCanvas.stop(); else { Cosmos.refresh(); if (state.currentView === 'timeline') ConnectionCanvas.render(); } }, undefined, 'wire:visibility');
 
 bindOnce(window, 'resize', () => {
   Cosmos.resize(); Ripple.resize(); ConnectionCanvas.resize(); Whip.resize();
