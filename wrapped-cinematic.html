@@ -549,7 +549,16 @@ const SOUNDPRINTS = {
 let allEchoes = [];
 try {
   const raw = localStorage.getItem('echovault_echoes_v2');
-  if (raw) allEchoes = JSON.parse(raw) || [];
+  const parsed = raw ? JSON.parse(raw) : [];
+  const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.echoes) ? parsed.echoes : []);
+  allEchoes = list.filter((echo) => echo && typeof echo === 'object' && !Array.isArray(echo)).map((echo, index) => ({
+    ...echo,
+    id: echo.id || `legacy-wrapped-${index}`,
+    mood: typeof echo.mood === 'string' && echo.mood ? echo.mood : 'reflective',
+    intensity: Number.isFinite(Number(echo.intensity)) ? Math.min(10, Math.max(1, Number(echo.intensity))) : 5,
+    thought: typeof echo.thought === 'string' ? echo.thought : (typeof echo.note === 'string' ? echo.note : null),
+    date: Number.isNaN(new Date(echo.date || echo.createdAt).getTime()) ? new Date().toISOString() : new Date(echo.date || echo.createdAt).toISOString()
+  }));
 } catch(e) { allEchoes = []; }
 
 // Add rich demo data if empty

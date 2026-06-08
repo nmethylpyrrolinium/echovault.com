@@ -3,7 +3,7 @@ const crypto = require('crypto');
 
 const failures = [];
 
-['index.html','styles.css','script.js','phase2-emotional-intelligence.js','README.md','manifest.json','sw.js','wrapped-cinematic-module.js'].forEach((f) => {
+['index.html','styles.css','script.js','phase2-emotional-intelligence.js','README.md','manifest.json','sw.js','version.js','wrapped-cinematic-module.js'].forEach((f) => {
   if (!fs.existsSync(f)) failures.push(`Missing required file: ${f}`);
 });
 
@@ -186,7 +186,7 @@ if (!script.includes('beforeinstallprompt')) failures.push('script.js missing be
 if (!script.includes('echovault_echoes_v2')) failures.push('script.js missing echovault_echoes_v2 key');
 
 
-if (!(script.includes('APP_VERSION') || fs.readFileSync('sw.js','utf8').includes('APP_VERSION'))) failures.push('APP_VERSION missing in script.js/sw.js');
+if (!index.includes('<script src="version.js"></script>') || !script.includes('window.ECHOVAULT_RELEASE') || !fs.readFileSync('sw.js','utf8').includes("importScripts('version.js')")) failures.push('Shared release source is not loaded by both page and service worker');
 if (fs.readFileSync('sw.js','utf8').includes("echovault-v3")) failures.push('sw.js still uses old echovault-v3 cache name');
 if (!script.includes('AppEnvironment')) failures.push('script.js missing AppEnvironment');
 if (!(style.includes('is-standalone') || style.includes('display-mode: standalone'))) failures.push('standalone CSS handling missing');
@@ -199,25 +199,20 @@ if (!index.includes('Refresh App Cache') && !script.includes('refresh-app-cache-
 
 // Phase 1 game/community foundation checks
 const sw = fs.readFileSync('sw.js','utf8');
-const scriptAppVersion = script.match(/const\s+APP_VERSION\s*=\s*'([^']+)'/)?.[1];
-const swAppVersion = sw.match(/const\s+APP_VERSION\s*=\s*'([^']+)'/)?.[1];
-const scriptCacheVersion = script.match(/const\s+SW_CACHE_VERSION\s*=\s*'([^']+)'/)?.[1];
-const swCacheVersion = sw.match(/const\s+CACHE\s*=\s*'([^']+)'/)?.[1];
-if (!scriptAppVersion || scriptAppVersion !== swAppVersion) failures.push('App and service-worker APP_VERSION values must match');
-if (!scriptCacheVersion || scriptCacheVersion !== swCacheVersion) failures.push('App and service-worker cache version values must match');
+const versionSource = fs.readFileSync('version.js','utf8');
+if ((versionSource.match(/ECHOVAULT_RELEASE\s*=/g) || []).length !== 1) failures.push('version.js must contain exactly one release assignment');
+if (script.includes('SW_CACHE_VERSION') || script.includes('const APP_VERSION') || sw.includes('const APP_VERSION')) failures.push('Duplicate legacy cache/app version constants remain');
+if (!sw.includes('PRECACHE_CACHE') || !sw.includes('RUNTIME_CACHE')) failures.push('Service worker cache separation missing');
 if (!index.includes('Refresh App Cache') && !script.includes('refresh-app-cache-btn')) failures.push('Refresh App Cache missing');
 
 
 // Scroll unlock regression checks
-const appVersionDecls = (script.match(/const\s+APP_VERSION\s*=/g) || []).length;
-if (appVersionDecls !== 1) failures.push(`Expected one APP_VERSION declaration in script.js, found ${appVersionDecls}`);
-const swCacheDecls = (sw.match(/const\s+CACHE\s*=/g) || []).length;
-if (swCacheDecls !== 1) failures.push(`Expected one service-worker CACHE declaration, found ${swCacheDecls}`);
+if (!sw.includes("key.startsWith(CACHE_PREFIX)") || !sw.includes('caches.delete(key)')) failures.push('Service worker old EchoVault cache cleanup missing');
 if (!script.includes('function cleanupOverlays') || !script.includes("login.classList.add('hidden')") || !script.includes("login.style.pointerEvents = 'none'")) failures.push('cleanupOverlays does not force login screen hidden/non-interactive');
 if (!script.includes('function finish()') || !script.includes("overlay.classList.remove('open')") || !script.includes('finally') || !script.includes('cleanupOverlays({ keepOnboarding:false })')) failures.push('Onboarding finish should remove .open and run cleanup in finally');
 if (!script.includes("document.body.style.overflow = ''") || !script.includes("document.documentElement.style.overflow = ''")) failures.push('Overlay cleanup must restore body/html overflow');
 if (!style.includes('max-height:calc(100dvh - 48px);overflow:auto') || !style.includes('#onboarding') || !style.includes('min-height:100dvh')) failures.push('Onboarding mobile dvh scrollability missing');
-if (!sw.includes("fetch(e.request, { cache: 'no-store' })") || !sw.includes('isFreshAsset')) failures.push('Service worker should network-refresh CSS/JS assets');
+if (!sw.includes("fetch(request, { cache: 'no-store' })") || !sw.includes('isCodeAsset') || !sw.includes('networkFirst(request)')) failures.push('Service worker should network-refresh CSS/JS assets');
 ['EchoAvatar','echovault_avatar_v1','MaterialEngine','VaultInventory','echovault_inventory_v1','GentleQuests','echovault_quests_v1','Society Gate'].forEach((marker) => {
   if (!script.includes(marker) && !index.includes(marker)) failures.push(`Missing Phase 1 marker: ${marker}`);
 });
@@ -669,8 +664,20 @@ if (/stripe|razorpay|paypal|payment dependency|checkout|pricing page|subscriptio
 if (Object.keys(deps).some((d) => ['react','vue','angular','next','svelte','tailwindcss','three'].includes(d))) failures.push('Heavy framework dependency added unexpectedly');
 
 
-if (!sw.includes("cached || new Response('', { status: 503 })")) failures.push('service worker fresh-asset fallback must always return a Response');
-if (!sw.includes("e.data?.text()")) failures.push('service worker push handler should tolerate non-JSON payloads');
+
+const manifest = JSON.parse(fs.readFileSync('manifest.json','utf8'));
+if (manifest.start_url !== './' || manifest.scope !== './') failures.push('Manifest start_url/scope must remain GitHub Pages relative');
+if (manifest.theme_color !== '#0a0a12' || manifest.background_color !== '#050508' || !index.includes('<meta name="theme-color" content="#0a0a12">')) failures.push('Manifest/index premium dark theme colors are inconsistent');
+(manifest.icons || []).forEach((icon) => { if (!fs.existsSync(icon.src)) failures.push(`Manifest icon missing: ${icon.src}`); });
+if (!(manifest.icons || []).some((icon) => icon.src === 'icons/icon.svg' && icon.sizes === 'any' && icon.type === 'image/svg+xml' && icon.purpose.includes('any') && icon.purpose.includes('maskable'))) failures.push('Manifest source-only SVG install icon is incomplete');
+if (/\.png(?:["'])/.test(JSON.stringify(manifest.icons || [])) || index.includes('apple-touch-icon') || sw.includes('icons/icon-192.png')) failures.push('Binary install icon reference reintroduced');
+if (!sw.includes("request.method !== 'GET'") || !sw.includes("url.origin !== self.location.origin")) failures.push('Service worker unsupported/non-GET request guards missing');
+if (!sw.includes('canCache(response)') || !sw.includes('response.ok')) failures.push('Service worker may cache failed responses');
+
+if (!sw.includes("new Response('', { status: 503, statusText: 'Offline' })")) failures.push('service worker network/cache fallbacks must always return a Response');
+if (!sw.includes("event.data?.text()")) failures.push('service worker push handler should tolerate non-JSON payloads');
+if (!script.includes('safeParseLocalJSON') || !script.includes('backupCorruptLocalValue') || !script.includes('normalizeEchoes')) failures.push('Safe localStorage echo recovery helpers missing');
+if (!script.includes("const parsed = safeParseLocalJSON(KEY, {}, { backup:true });")) failures.push('Preference loading does not use safe backed-up JSON parsing');
 
 if (failures.length) {
   console.error('Smoke test failed:');

@@ -1,10 +1,9 @@
 (function EchoVault() {
 'use strict';
 
-// Keep these version constants declared once only; duplicate consts break startup after merge regressions.
-const APP_VERSION = 'bug-audit-reliability';
-const SW_CACHE_VERSION = 'echovault-v19-bug-audit-reliability';
-console.info('[EchoVault]', APP_VERSION, SW_CACHE_VERSION);
+// version.js is the single deployment/cache release source shared by the page and service worker.
+const APP_RELEASE = window.ECHOVAULT_RELEASE || 'unversioned';
+console.info('[EchoVault]', APP_RELEASE);
 
 const PRODUCTION_REDIRECT_URL = 'https://nmethylpyrrolinium.github.io/echovault.com/';
 function getAuthRedirectUrl() {
@@ -364,14 +363,58 @@ function cleanupOverlays(options = {}) {
 }
 
 /* ── STORAGE ── */
+function backupCorruptLocalValue(key, raw) {
+  if (!raw) return;
+  try { localStorage.setItem(`echovault_corrupt_backup_${key}_${Date.now()}`, raw); } catch (error) {}
+}
+function safeParseLocalJSON(key, fallback, options = {}) {
+  let raw;
+  try { raw = localStorage.getItem(key); } catch (error) { return fallback; }
+  if (raw === null || raw === '') return fallback;
+  try { return JSON.parse(raw); }
+  catch (error) {
+    if (options.backup !== false) backupCorruptLocalValue(key, raw);
+    return fallback;
+  }
+}
+function safeLocalObject(key, fallback = {}) {
+  const value = safeParseLocalJSON(key, fallback, { backup:true });
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : fallback;
+}
+function safeLocalArray(key, fallback = []) {
+  const value = safeParseLocalJSON(key, fallback, { backup:true });
+  return Array.isArray(value) ? value : fallback;
+}
+function normalizeEcho(echo, index = 0) {
+  if (!echo || typeof echo !== 'object' || Array.isArray(echo)) return null;
+  const originalDate = echo.date ?? echo.createdAt ?? echo.created_at ?? echo.timestamp;
+  const parsedDate = new Date(originalDate);
+  const date = Number.isNaN(parsedDate.getTime()) ? new Date(Date.now() - index).toISOString() : parsedDate.toISOString();
+  const numericIntensity = Number(echo.intensity);
+  const numericSilence = Number(echo.silence);
+  const legacyMood = typeof echo.mood === 'string' ? echo.mood.trim().toLowerCase() : '';
+  const mood = Object.prototype.hasOwnProperty.call(MOOD_FAMILIES, legacyMood) ? legacyMood : 'reflective';
+  const id = (typeof echo.id === 'string' || typeof echo.id === 'number') && String(echo.id).trim() ? echo.id : `legacy-${date}-${index}`;
+  return {
+    ...echo,
+    id,
+    mood,
+    intensity: Number.isFinite(numericIntensity) ? Math.min(10, Math.max(1, numericIntensity)) : 5,
+    silence: Number.isFinite(numericSilence) ? Math.min(10, Math.max(1, numericSilence)) : 5,
+    thought: typeof echo.thought === 'string' ? echo.thought : (typeof echo.note === 'string' ? echo.note : null),
+    note: typeof echo.note === 'string' ? echo.note : undefined,
+    void: Boolean(echo.void),
+    date
+  };
+}
+function normalizeEchoes(value) {
+  const list = Array.isArray(value) ? value : (Array.isArray(value?.echoes) ? value.echoes : []);
+  return list.map(normalizeEcho).filter(Boolean);
+}
+
 const Storage = (() => {
   function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch(e) { return []; }
+    return normalizeEchoes(safeParseLocalJSON(STORAGE_KEY, [], { backup:true }));
   }
   function save(echoes) {
     clearTimeout(state.lsWriteTimer);
@@ -395,8 +438,8 @@ const Storage = (() => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        const arr  = data.echoes || data;
-        if (!Array.isArray(arr)) throw new Error('Invalid format');
+        const arr = normalizeEchoes(data.echoes || data);
+        if (!Array.isArray(data.echoes || data)) throw new Error('Invalid format');
         onSuccess(arr);
         Toast.show(`Imported ${arr.length} echoes ✓`);
       } catch(err) { Toast.show('Import failed — invalid file.'); }
@@ -422,8 +465,8 @@ const Toast = (() => {
 const ProfileStore = (() => {
   const KEY = 'echovault_profile_v1';
   function read() {
-    let profile = {};
-    try { profile = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch {}
+    let profile = safeParseLocalJSON(KEY, {}, { backup:true });
+    if (!profile || typeof profile !== 'object' || Array.isArray(profile)) profile = {};
     const legacy = localStorage.getItem(USER_KEY);
     if (legacy && !profile.display_name) {
       profile = { ...profile, display_name: legacy };
@@ -526,14 +569,9 @@ const UserAccess = (() => {
     return { ...value, tier, source:normalizeSource(value.source), updated_at:value.updated_at || new Date().toISOString() };
   }
   function load() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(KEY) || '{}');
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { tier:'free', source:'free' };
-      return normalizeState(parsed);
-    } catch (error) {
-      localStorage.removeItem(KEY);
-      return { tier:'free', source:'free' };
-    }
+    const parsed = safeParseLocalJSON(KEY, {}, { backup:true });
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return { tier:'free', source:'free' };
+    return normalizeState(parsed);
   }
   function save(accessState) {
     const next = normalizeState(accessState);
@@ -710,7 +748,7 @@ const WrappedCinematicLoader = (() => {
         return;
       }
       const script = document.createElement('script');
-      script.src = 'wrapped-cinematic-module.js?v=' + encodeURIComponent(APP_VERSION);
+      script.src = 'wrapped-cinematic-module.js?v=' + encodeURIComponent(APP_RELEASE);
       script.defer = true;
       script.onload = finish;
       script.onerror = () => { debugWarn('module script failed to load'); resolve(null); };
@@ -1267,7 +1305,7 @@ const PWAInstall = (() => {
 
   function readEngagement() {
     try {
-      const raw = JSON.parse(localStorage.getItem(ENGAGEMENT_KEY) || '{}') || {};
+      const raw = safeParseLocalJSON(ENGAGEMENT_KEY, {}, { backup:true }) || {};
       return {
         views: Array.isArray(raw.views) ? raw.views.filter((v) => MAJOR_VIEWS.has(v)) : [],
         hasEcho: Boolean(raw.hasEcho),
@@ -3897,7 +3935,7 @@ const RelicEngine = (() => {
 
 const ArtifactArchive = (() => {
   const KEY='echovault_artifacts_v1';
-  const listArtifacts=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}};
+  const listArtifacts=()=>safeLocalArray(KEY);
   const save=(arr)=>localStorage.setItem(KEY,JSON.stringify(arr));
   const saveArtifact=(artifact)=>{const arr=listArtifacts();arr.unshift({...artifact,id:artifact.id||`art_${Date.now()}`,created_at:new Date().toISOString()});save(arr);EchoAvatar.addXP?.(8, 'save artifact');GentleQuests?.evaluate?.('artifact_saved', artifact);return arr[0];};
   const deleteArtifact=(id)=>save(listArtifacts().filter(a=>a.id!==id));
@@ -3961,7 +3999,7 @@ const VaultInventory = (() => {
     });
     return clean;
   }
-  function load(){ try { return normalize(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { return {}; } }
+  function load(){ return normalize(safeLocalObject(KEY)); }
   function save(inv){ localStorage.setItem(KEY, JSON.stringify(normalize(inv))); return normalize(inv); }
   function addMaterials(materials=[]) {
     const inv = load();
@@ -4026,7 +4064,7 @@ const VaultRooms = (() => {
     { id:'archive_shelf', name:'Archive Shelf', reason:'Requires at least 3 saved artifacts.', test:()=>ArtifactArchive.listArtifacts().length >= 3 },
     { id:'society_gate', name:'Society Gate', reason:'Requires Echo Avatar + 5 echoes + 1 saved or crafted artifact.', test:()=>Object.keys(EchoAvatar.load()).length > 0 && state.echoes.length >= 5 && ArtifactArchive.listArtifacts().length >= 1 }
   ];
-  function load(){ try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { return {}; } }
+  function load(){ return safeLocalObject(KEY); }
   function getRooms(){ const saved=load(); return rooms.map(r=>({ id:r.id, name:r.name, unlocked:Boolean(saved[r.id]?.unlocked || r.test()), reason:r.reason })); }
   function getUnlockedRooms(){ return getRooms().filter(r=>r.unlocked); }
   function isUnlocked(roomId){ return Boolean(getRooms().find(r=>r.id===roomId)?.unlocked); }
@@ -4058,8 +4096,7 @@ const GentleQuests = (() => {
   }
   function completionKey(id, dateKey = todayKey()) { return `${id}:${dateKey}`; }
   function load(){
-    let data;
-    try { data = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { data = {}; }
+    const data = safeLocalObject(KEY);
     let migrated = false;
     Object.entries(data || {}).forEach(([key, value]) => {
       if (!key.includes(':') && value?.completed) {
@@ -4118,7 +4155,7 @@ const EchoAvatar = (() => {
     const xp = Math.max(0, Number(avatar.role_xp || 0));
     return { ...avatar, level:avatar.level || getLevelNumber(xp), role_xp:xp, role_title:avatar.role_title || getLevelTitle(xp), unlocked_accessories:Array.isArray(avatar.unlocked_accessories)?avatar.unlocked_accessories:[], last_progress_at:avatar.last_progress_at || avatar.updated_at || avatar.created_at || new Date().toISOString() };
   }
-  function load(){ try { return normalize(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch { return normalize({}); } }
+  function load(){ return normalize(safeLocalObject(KEY)); }
   function save(avatar){ localStorage.setItem(KEY, JSON.stringify(normalize(avatar))); return normalize(avatar); }
   function build() {
     const arch = ArchetypeEngine.compute(PatternEngine.analyze(state.echoes));
@@ -4188,8 +4225,9 @@ const SOCIETY_REACTIONS = {
 };
 
 function readLocalJSON(key, fallback) {
-  try { const parsed = JSON.parse(localStorage.getItem(key) || ''); return parsed ?? fallback; } catch { return fallback; }
+  return safeParseLocalJSON(key, fallback, { backup:true }) ?? fallback;
 }
+
 function writeLocalJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); return value; }
 function dayKey(date = new Date()) { return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0,10); }
 
@@ -4764,7 +4802,7 @@ const Rituals = (() => {
   const RITUAL_OB_SHOWN_KEY = 'echoRitualOb';
 
   function getRitualOb(type) {
-    try { return JSON.parse(localStorage.getItem(RITUAL_OB_SHOWN_KEY) || '{}'); } catch(e) { return {}; }
+    return safeLocalObject(RITUAL_OB_SHOWN_KEY);
   }
   function markRitualObShown(type) {
     const shown = getRitualOb();
@@ -6278,8 +6316,8 @@ const DebugPanel = (() => {
       .filter((el) => el && (el.classList.contains('open') || (!el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && ['login-screen'].includes(el.id))))
       .map((el) => `${el.id}${el.classList.contains('open') ? '.open' : ''}`);
     const swStatus = navigator.serviceWorker?.controller ? `active (${navigator.serviceWorker.controller.scriptURL || 'controller'})` : 'none';
-    panel.innerHTML = `APP_VERSION:${APP_VERSION}<br>SW cache:${SW_CACHE_VERSION}<br>mode:${Auth.isLocalMode() ? 'local' : 'supabase'}<br>display:${AppEnvironment.isStandalone() ? 'standalone':'browser'}<br>current view:${escapeHTML(state.currentView)}<br>active overlays:${escapeHTML(activeOverlays.join(', ') || 'none')}<br>html overflow:${escapeHTML(document.documentElement.style.overflow || getComputedStyle(document.documentElement).overflow)}<br>body overflow:${escapeHTML(document.body.style.overflow || getComputedStyle(document.body).overflow)}<br>sw:${escapeHTML(swStatus)}<br>echoes:${state.echoes.length}<br>artifacts:${ArtifactArchive.listArtifacts().length}<br>profile:${escapeHTML(profile.display_name || 'anon')}<br>access:${escapeHTML(UserAccess.getTier())} (${escapeHTML(UserAccess.getSource())})`;
-    console.info('[EchoVault Debug]', { appVersion: APP_VERSION, swCacheVersion: SW_CACHE_VERSION, storageMode: Auth.isLocalMode() ? 'local' : 'supabase', standalone: AppEnvironment.isStandalone(), currentView: state.currentView, activeOverlays, htmlOverflow: document.documentElement.style.overflow || getComputedStyle(document.documentElement).overflow, bodyOverflow: document.body.style.overflow || getComputedStyle(document.body).overflow, serviceWorker: swStatus, echoCount: state.echoes.length, artifactCount: ArtifactArchive.listArtifacts().length, accessTier: UserAccess.getTier(), accessSource: UserAccess.getSource() });
+    panel.innerHTML = `release:${APP_RELEASE}<br>mode:${Auth.isLocalMode() ? 'local' : 'supabase'}<br>display:${AppEnvironment.isStandalone() ? 'standalone':'browser'}<br>current view:${escapeHTML(state.currentView)}<br>active overlays:${escapeHTML(activeOverlays.join(', ') || 'none')}<br>html overflow:${escapeHTML(document.documentElement.style.overflow || getComputedStyle(document.documentElement).overflow)}<br>body overflow:${escapeHTML(document.body.style.overflow || getComputedStyle(document.body).overflow)}<br>sw:${escapeHTML(swStatus)}<br>echoes:${state.echoes.length}<br>artifacts:${ArtifactArchive.listArtifacts().length}<br>profile:${escapeHTML(profile.display_name || 'anon')}<br>access:${escapeHTML(UserAccess.getTier())} (${escapeHTML(UserAccess.getSource())})`;
+    console.info('[EchoVault Debug]', { release: APP_RELEASE, storageMode: Auth.isLocalMode() ? 'local' : 'supabase', standalone: AppEnvironment.isStandalone(), currentView: state.currentView, activeOverlays, htmlOverflow: document.documentElement.style.overflow || getComputedStyle(document.documentElement).overflow, bodyOverflow: document.body.style.overflow || getComputedStyle(document.body).overflow, serviceWorker: swStatus, echoCount: state.echoes.length, artifactCount: ArtifactArchive.listArtifacts().length, accessTier: UserAccess.getTier(), accessSource: UserAccess.getSource() });
   }
   return { ensure };
 })();
@@ -6292,32 +6330,27 @@ const ServiceWorkerManager = (() => {
     if (swRegisterBound) return;
     swRegisterBound = true;
     if (!('serviceWorker' in navigator)) return;
-    if (sessionStorage.getItem(LAST_VERSION_KEY) === APP_VERSION) sessionStorage.removeItem(UPDATE_GUARD_KEY);
-    sessionStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
-    const reg = await navigator.serviceWorker.register('sw.js');
+    if (sessionStorage.getItem(LAST_VERSION_KEY) === APP_RELEASE) sessionStorage.removeItem(UPDATE_GUARD_KEY);
+    sessionStorage.setItem(LAST_VERSION_KEY, APP_RELEASE);
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    let reg;
+    try { reg = await navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }); }
+    catch (error) { return; }
     if (!reg) return;
     const refreshOnce = () => {
-      if (sessionStorage.getItem(UPDATE_GUARD_KEY) === APP_VERSION) return;
-      sessionStorage.setItem(UPDATE_GUARD_KEY, APP_VERSION);
+      if (!hadController || sessionStorage.getItem(UPDATE_GUARD_KEY) === APP_RELEASE) return;
+      sessionStorage.setItem(UPDATE_GUARD_KEY, APP_RELEASE);
       Toast.show('New EchoVault version ready — refreshing…', 3200);
       setTimeout(() => location.reload(), 850);
     };
-    const onNewWorker = (worker) => {
-      if (!worker) return;
-      worker.addEventListener('statechange', () => {
-        if ((worker.state === 'installed' || worker.state === 'activated') && navigator.serviceWorker.controller) refreshOnce();
-      });
-    };
-    onNewWorker(reg.installing || reg.waiting);
-    reg.addEventListener('updatefound', () => onNewWorker(reg.installing));
     navigator.serviceWorker.addEventListener('controllerchange', refreshOnce);
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data?.type === 'SW_ACTIVATED') {
-        if (event.data?.appVersion === APP_VERSION) sessionStorage.removeItem(UPDATE_GUARD_KEY);
+        if (event.data?.release === APP_RELEASE) sessionStorage.removeItem(UPDATE_GUARD_KEY);
         DebugPanel.ensure();
       }
     });
-    reg.update?.();
+    reg.update?.().catch(() => {});
   }
   return { register };
 })();
