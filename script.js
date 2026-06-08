@@ -257,31 +257,37 @@ const ArchetypeEngine = (() => {
 
 /* ── STATE ── */
 
-let lastFocusedElement = null;
+const modalReturnFocus = new WeakMap();
 function modalFocusables(modal){
   if(!modal) return [];
-  return Array.from(modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(el=>!el.disabled && el.offsetParent!==null);
+  return Array.from(modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')).filter(el=>!el.disabled && el.offsetParent!==null && el.getAttribute('aria-hidden')!=='true');
 }
 function openModalA11y(modal,{initialSelector}={}){
   if(!modal) return;
-  lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  if(active && !modal.contains(active)) modalReturnFocus.set(modal, active);
   modal.setAttribute('aria-hidden','false');
   const target = initialSelector ? modal.querySelector(initialSelector) : null;
   const focusTarget = target || modalFocusables(modal)[0] || modal;
-  setTimeout(()=>focusTarget?.focus?.(),30);
+  setTimeout(()=>focusTarget?.focus?.({preventScroll:true}),30);
 }
 function closeModalA11y(modal){
   if(!modal) return;
   modal.setAttribute('aria-hidden','true');
-  if(lastFocusedElement?.focus) setTimeout(()=>lastFocusedElement.focus(),30);
+  const returnTarget = modalReturnFocus.get(modal);
+  modalReturnFocus.delete(modal);
+  if(returnTarget?.isConnected && returnTarget.focus) setTimeout(()=>returnTarget.focus({preventScroll:true}),30);
 }
 function trapModalTab(event, modal){
   if(event.key !== 'Tab' || !modal) return;
   const nodes = modalFocusables(modal);
-  if(!nodes.length) return;
+  if(!nodes.length){ event.preventDefault(); modal.focus?.(); return; }
   const first = nodes[0];
   const last = nodes[nodes.length - 1];
-  if(event.shiftKey && document.activeElement === first){
+  if(!modal.contains(document.activeElement)){
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }else if(event.shiftKey && document.activeElement === first){
     event.preventDefault();
     last.focus();
   }else if(!event.shiftKey && document.activeElement === last){
@@ -1515,7 +1521,7 @@ const Onboarding = (() => {
   function start() {
     cleanupOverlays({ keepOnboarding:true });
     overlay.classList.add('open');
-    openModalA11y(overlay,{initialSelector:'#migration-sync-btn'});
+    openModalA11y(overlay,{initialSelector:'#ob-next'});
     overlay.style.pointerEvents = '';
     current = 0;
     render();
@@ -3016,7 +3022,7 @@ const EntryForm = (() => {
     voidToggle.classList.toggle('active', voidMode);
     voidToggle.setAttribute('aria-checked', String(voidMode));
     thoughtInput.disabled = voidMode; thoughtInput.style.opacity = voidMode ? '.3' : '1';
-    thoughtInput.placeholder = voidMode ? 'No words, only feeling' : 'Let it be incomplete. Let it be honest.';
+    thoughtInput.placeholder = voidMode ? 'No words, only feeling' : 'Write a note for this echo, if it has words.';
     if (!voidMode && wasVoid && opts.focus) thoughtInput.focus({preventScroll:true});
   }
   function toggleVoid(){ applyVoidState(!voidMode,{focus:true}); }
@@ -3172,7 +3178,7 @@ const Timeline = (() => {
       wrap.className = 'bubble-wrap';
       wrap.setAttribute('role','button');
       wrap.setAttribute('tabindex','0');
-      wrap.setAttribute('aria-label',`Open echo from ${new Date(echo.date).toLocaleDateString()} with mood ${echo.mood}`);
+      wrap.setAttribute('aria-label',`Open ${echo.mood} echo from ${new Date(echo.date).toLocaleDateString()}, intensity ${echo.intensity || 0}, silence ${echo.silence || 0}`);
       wrap.dataset.id = echo.id;
       wrap.style.cssText = `left:${x-size/2}px;top:${y-size/2}px;width:${size}px;height:${size}px;`;
 
@@ -3246,7 +3252,7 @@ const Timeline = (() => {
       card.type = 'button';
       card.className = 'timeline-fallback-card';
       card.style.setProperty('--mood-color', MOOD_COLORS[echo.mood] || '#c9a84c');
-      card.setAttribute('aria-label', `Open echo from ${new Date(echo.date).toLocaleDateString()} with mood ${echo.mood}`);
+      card.setAttribute('aria-label', `Open ${echo.mood} echo from ${new Date(echo.date).toLocaleDateString()}, intensity ${echo.intensity || 0}, silence ${echo.silence || 0}`);
       card.innerHTML = `<strong>${escapeHTML(echo.mood)}</strong><span>${formatDateShort(echo.date)}</span><small>Intensity ${escapeHTML(String(echo.intensity || 0))} · Silence ${escapeHTML(String(echo.silence || 0))}</small>`;
       card.addEventListener('click', () => openDetail(echo));
       list.appendChild(card);
@@ -3299,6 +3305,7 @@ const Timeline = (() => {
         const target = relations[0]?.echo;
         if (!target) return;
         panel.classList.remove('open');
+        closeModalA11y(panel);
         const wrap = Array.from(field.querySelectorAll('.bubble-wrap')).find(node => String(node.dataset.id) === String(target.id));
         if (wrap) { wrap.scrollIntoView({behavior:prefersReducedMotion() ? 'auto' : 'smooth', block:'center'}); handleFocus(wrap); Toast.show('Nearest resonance traced.'); }
       };
@@ -3313,7 +3320,7 @@ const Timeline = (() => {
       Silence level: ${silence}/10 · ${echo.void ? 'void mode' : 'spoken'} · ${relations.length} relation${relations.length === 1 ? '' : 's'}
     `;
     panel.classList.add('open');
-    setTimeout(() => document.getElementById('detail-close-btn')?.focus(), 40);
+    openModalA11y(panel,{initialSelector:'#detail-close-btn'});
   }
 
   return {render, openDetail};
@@ -4875,7 +4882,7 @@ const Rituals = (() => {
     if (premiumRitualMap[type] && !UserAccess.requirePremium(premiumRitualMap[type], { openSettings:true })) return;
     const builders = getBuilders();
     const fn = builders[type];
-    if (!fn) { content.innerHTML = unknownRitualHTML(type); modal.classList.add('open'); return; }
+    if (!fn) { content.innerHTML = unknownRitualHTML(type); modal.classList.add('open'); openModalA11y(modal,{initialSelector:'#fun-modal-close'}); return; }
     const shown = getRitualOb();
     const doOpen = () => {
       modal.classList.add('open');
@@ -5012,8 +5019,8 @@ const Rituals = (() => {
   }
 
 
-  function initLanternInteraction(){const canvas=document.getElementById('lantern-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');let glow=.4,taps=0,time=0,completed=false;const mood=PatternEngine.analyze(state.echoes).dominantMood||'reflective';const particles=[];const msg=document.getElementById('lantern-msg');const scene=document.querySelector('.lantern-scene');const frame=()=>{const w=canvas.width,h=canvas.height;time+=.012;ctx.clearRect(0,0,w,h);ctx.fillStyle='#07090f';ctx.fillRect(0,0,w,h);ctx.fillStyle='rgba(80,90,110,.12)';ctx.fillRect(0,h*.7,w,h*.3);const r=28+glow*8+Math.sin(time)*2;const g=ctx.createRadialGradient(w/2,h*.56,0,w/2,h*.56,r*2.2);g.addColorStop(0,`rgba(240,198,115,${.2+glow*.1})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h*.56,r*2.2,0,6.28);ctx.fill();ctx.fillStyle=`rgba(243,201,126,${.5+glow*.06})`;ctx.beginPath();ctx.arc(w/2,h*.58,r,0,6.28);ctx.fill();for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.y-=p.vy;p.x+=p.vx;p.life-=.02;ctx.fillStyle=`rgba(248,214,155,${Math.max(0,p.life)})`;ctx.fillRect(p.x,p.y,2,2);if(p.life<=0)particles.splice(i,1);}if(document.getElementById('lantern-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(frame)};frame();canvas.addEventListener('click',()=>{taps++;glow=Math.min(8,glow+1);scene?.setAttribute('data-state',taps>=4?'alive':(taps>=2?'faint':'unlit'));const particleBurst = prefersReducedMotion() ? 2 : (6+taps); for(let i=0;i<particleBurst;i++)particles.push({x:canvas.width/2+(Math.random()*36-18),y:canvas.height*.55,vx:Math.random()*.8-.4,vy:1+Math.random()*1.4,life:.8});if(taps===1)msg.textContent='The lantern wakes.';if(taps===2)msg.textContent='A faint warmth answers.';if(taps>=4){msg.textContent='Still here is still a signal.';document.getElementById('lantern-actions').hidden=false;scene?.classList.add('ritual-complete');if(!completed){completed=true;GentleQuests.evaluate('lantern_lit');VaultInventory.addMaterials([{name:'Moon Thread',qty:1}]);Toast.show('+1 Moon Thread');}}});document.getElementById('save-lantern')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'lantern',title:'Void Lantern',subtitle:'Still here is still a signal.',data:{glowLevel:glow,mood,created_at:new Date().toISOString()}});Toast.show('Lantern saved to museum ✓');});document.getElementById('dl-lantern')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderRelicCard({title:'Void Lantern',rarity:'luminous',coordinates:'EV-LIGHT',mood}),'void-lantern-card.png'));}
-  function initStormJarInteraction(){const canvas=document.getElementById('storm-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');const p=PatternEngine.analyze(state.echoes);let sparks=Math.max(prefersReducedMotion()?4:10,Math.round((p.averageIntensity||4)*(prefersReducedMotion()?1:2)));let taps=0,shake=0,flash=0;const msg=document.getElementById('storm-msg');const scene=document.querySelector('.storm-scene');const draw=()=>{const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#080a12';ctx.fillRect(0,0,w,h);const ox=(Math.random()-.5)*shake;ctx.save();ctx.translate(ox,0);ctx.strokeStyle='rgba(180,200,255,.65)';ctx.lineWidth=2;ctx.strokeRect(w/2-70,h/2-90,140,180);ctx.restore();for(let i=0;i<sparks;i++){ctx.strokeStyle='rgba(222,82,120,.6)';ctx.beginPath();const x=w/2-50+Math.random()*100,y=h/2-70+Math.random()*140;ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*22-11,y+Math.random()*22-11);ctx.stroke();}if(flash>0){ctx.strokeStyle=`rgba(255,230,180,${flash})`;ctx.beginPath();ctx.moveTo(w/2-20,h/2-70);ctx.lineTo(w/2+16,h/2-30);ctx.lineTo(w/2-8,h/2+20);ctx.stroke();flash=Math.max(0,flash-.06);}shake*=.88;if(document.getElementById('storm-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(draw)};draw();canvas.addEventListener('click',()=>{taps++;sparks=Math.min(52,sparks+4);shake=Math.min(14,shake+4);scene?.setAttribute('data-state',taps>=3?'contained':(taps>=2?'awake':'still'));if(taps===1)msg.textContent='Sparks begin to gather.';if(taps===2){msg.textContent='The jar trembles.';flash=.9;}if(taps>=3){msg.textContent='The storm has shape now.';document.getElementById('storm-actions').hidden=false;scene?.classList.add('ritual-complete');}});document.getElementById('save-storm')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'stormjar',title:'Storm Jar',subtitle:'The storm has shape now.',data:{sparkCount:sparks,mood:'chaos',created_at:new Date().toISOString()}});Toast.show('Storm saved to museum ✓');});document.getElementById('dl-storm')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderWeatherCard({name:'Storm Jar',summary:'The storm has shape now.',mood:'chaos'}),'storm-jar-card.png'));}
+  function initLanternInteraction(){const canvas=document.getElementById('lantern-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');let glow=.4,taps=0,time=0,completed=false;const mood=PatternEngine.analyze(state.echoes).dominantMood||'reflective';const particles=[];const msg=document.getElementById('lantern-msg');const scene=document.querySelector('.lantern-scene');const frame=()=>{const w=canvas.width,h=canvas.height;time+=.012;ctx.clearRect(0,0,w,h);ctx.fillStyle='#07090f';ctx.fillRect(0,0,w,h);ctx.fillStyle='rgba(80,90,110,.12)';ctx.fillRect(0,h*.7,w,h*.3);const r=28+glow*8+Math.sin(time)*2;const g=ctx.createRadialGradient(w/2,h*.56,0,w/2,h*.56,r*2.2);g.addColorStop(0,`rgba(240,198,115,${.2+glow*.1})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h*.56,r*2.2,0,6.28);ctx.fill();ctx.fillStyle=`rgba(243,201,126,${.5+glow*.06})`;ctx.beginPath();ctx.arc(w/2,h*.58,r,0,6.28);ctx.fill();for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.y-=p.vy;p.x+=p.vx;p.life-=.02;ctx.fillStyle=`rgba(248,214,155,${Math.max(0,p.life)})`;ctx.fillRect(p.x,p.y,2,2);if(p.life<=0)particles.splice(i,1);}if(!prefersReducedMotion() && document.getElementById('lantern-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(frame)};frame();canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();canvas.click();}});canvas.addEventListener('click',()=>{taps++;glow=Math.min(8,glow+1);scene?.setAttribute('data-state',taps>=4?'alive':(taps>=2?'faint':'unlit'));const particleBurst = prefersReducedMotion() ? 2 : (6+taps); for(let i=0;i<particleBurst;i++)particles.push({x:canvas.width/2+(Math.random()*36-18),y:canvas.height*.55,vx:Math.random()*.8-.4,vy:1+Math.random()*1.4,life:.8});if(taps===1)msg.textContent='The lantern wakes.';if(taps===2)msg.textContent='A faint warmth answers.';if(taps>=4){msg.textContent='Still here is still a signal.';document.getElementById('lantern-actions').hidden=false;scene?.classList.add('ritual-complete');if(!completed){completed=true;GentleQuests.evaluate('lantern_lit');VaultInventory.addMaterials([{name:'Moon Thread',qty:1}]);Toast.show('+1 Moon Thread');}}});document.getElementById('save-lantern')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'lantern',title:'Void Lantern',subtitle:'Still here is still a signal.',data:{glowLevel:glow,mood,created_at:new Date().toISOString()}});Toast.show('Lantern saved to museum ✓');});document.getElementById('dl-lantern')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderRelicCard({title:'Void Lantern',rarity:'luminous',coordinates:'EV-LIGHT',mood}),'void-lantern-card.png'));}
+  function initStormJarInteraction(){const canvas=document.getElementById('storm-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');const p=PatternEngine.analyze(state.echoes);let sparks=Math.max(prefersReducedMotion()?4:10,Math.round((p.averageIntensity||4)*(prefersReducedMotion()?1:2)));let taps=0,shake=0,flash=0;const msg=document.getElementById('storm-msg');const scene=document.querySelector('.storm-scene');const draw=()=>{const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#080a12';ctx.fillRect(0,0,w,h);const ox=(Math.random()-.5)*shake;ctx.save();ctx.translate(ox,0);ctx.strokeStyle='rgba(180,200,255,.65)';ctx.lineWidth=2;ctx.strokeRect(w/2-70,h/2-90,140,180);ctx.restore();for(let i=0;i<sparks;i++){ctx.strokeStyle='rgba(222,82,120,.6)';ctx.beginPath();const x=w/2-50+Math.random()*100,y=h/2-70+Math.random()*140;ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*22-11,y+Math.random()*22-11);ctx.stroke();}if(flash>0){ctx.strokeStyle=`rgba(255,230,180,${flash})`;ctx.beginPath();ctx.moveTo(w/2-20,h/2-70);ctx.lineTo(w/2+16,h/2-30);ctx.lineTo(w/2-8,h/2+20);ctx.stroke();flash=Math.max(0,flash-.06);}shake*=.88;if(!prefersReducedMotion() && document.getElementById('storm-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(draw)};draw();canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();canvas.click();}});canvas.addEventListener('click',()=>{taps++;sparks=Math.min(52,sparks+4);shake=Math.min(14,shake+4);scene?.setAttribute('data-state',taps>=3?'contained':(taps>=2?'awake':'still'));if(taps===1)msg.textContent='Sparks begin to gather.';if(taps===2){msg.textContent='The jar trembles.';flash=.9;}if(taps>=3){msg.textContent='The storm has shape now.';document.getElementById('storm-actions').hidden=false;scene?.classList.add('ritual-complete');}});document.getElementById('save-storm')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'stormjar',title:'Storm Jar',subtitle:'The storm has shape now.',data:{sparkCount:sparks,mood:'chaos',created_at:new Date().toISOString()}});Toast.show('Storm saved to museum ✓');});document.getElementById('dl-storm')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderWeatherCard({name:'Storm Jar',summary:'The storm has shape now.',mood:'chaos'}),'storm-jar-card.png'));}
   function close() { modal.classList.remove('open'); closeModalA11y(modal); }
 
   /* Character image pool */
@@ -5354,10 +5361,10 @@ Insight: ${d.insight}`;
 
 
   function buildLantern(){
-    return `<div class="ritual-scene lantern-scene"><h3>Void Lantern</h3><p>Tap to give the quiet a small light.</p><canvas id="lantern-canvas" width="520" height="300"></canvas><div id="lantern-msg" class="ritual-msg">Stillness can hold a signal.</div><div class="ritual-actions" id="lantern-actions" hidden><button class="receipt-action-btn" id="save-lantern">Save Lantern Artifact</button><button class="receipt-action-btn" id="dl-lantern">Download Lantern Card</button></div></div>`;
+    return `<div class="ritual-scene lantern-scene"><h3>Void Lantern</h3><p>Tap to give the quiet a small light.</p><canvas id="lantern-canvas" width="520" height="300" role="button" tabindex="0" aria-label="Light the Void Lantern"></canvas><div id="lantern-msg" class="ritual-msg">Stillness can hold a signal.</div><div class="ritual-actions" id="lantern-actions" hidden><button class="receipt-action-btn" id="save-lantern">Save Lantern Artifact</button><button class="receipt-action-btn" id="dl-lantern">Download Lantern Card</button></div></div>`;
   }
   function buildStormJar(){
-    return `<div class="ritual-scene storm-scene"><h3>Storm Jar</h3><p>Put the weather somewhere it can’t swallow you.</p><canvas id="storm-canvas" width="520" height="300"></canvas><div id="storm-msg" class="ritual-msg">Tap the jar to give the storm a shape.</div><div class="ritual-actions" id="storm-actions" hidden><button class="receipt-action-btn" id="save-storm">Save Storm Artifact</button><button class="receipt-action-btn" id="dl-storm">Download Storm Card</button></div></div>`;
+    return `<div class="ritual-scene storm-scene"><h3>Storm Jar</h3><p>Put the weather somewhere it can’t swallow you.</p><canvas id="storm-canvas" width="520" height="300" role="button" tabindex="0" aria-label="Gather sparks into the Storm Jar"></canvas><div id="storm-msg" class="ritual-msg">Tap the jar to give the storm a shape.</div><div class="ritual-actions" id="storm-actions" hidden><button class="receipt-action-btn" id="save-storm">Save Storm Artifact</button><button class="receipt-action-btn" id="dl-storm">Download Storm Card</button></div></div>`;
   }
   function buildMuseum(){
     VaultRooms.evaluate?.();
@@ -5976,11 +5983,19 @@ bindOnce(document.getElementById('timeline-create-btn'), 'click', () => Nav.show
 bindOnce(document.getElementById('wrapped-create-btn'), 'click', () => Nav.show('entry'), undefined, 'wire:wrapped-create');
 bindOnce(document.getElementById('view-uni-btn'), 'click', () => Nav.show('timeline'), undefined, 'wire:view-uni');
 document.getElementById('chip-onboarding-btn')?.addEventListener('click', () => { localStorage.removeItem(OB_KEY); Onboarding.start(); });
-bindOnce(document.getElementById('detail-close-btn'), 'click', () =>
-  document.getElementById('node-detail').classList.remove('open'), undefined, 'wire:detail-close');
+function closeNodeDetail(){
+  const panel = document.getElementById('node-detail');
+  panel?.classList.remove('open');
+  closeModalA11y(panel);
+}
+bindOnce(document.getElementById('detail-close-btn'), 'click', closeNodeDetail, undefined, 'wire:detail-close');
 bindOnce(document.getElementById('node-detail'), 'click', e => {
-  if (e.target.id==='node-detail') document.getElementById('node-detail').classList.remove('open');
+  if (e.target.id==='node-detail') closeNodeDetail();
 }, undefined, 'wire:node-detail-overlay-close');
+bindOnce(document.getElementById('node-detail'), 'keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); closeNodeDetail(); return; }
+  trapModalTab(e, e.currentTarget);
+}, undefined, 'wire:node-detail-keyboard');
 bindOnce(document.getElementById('period-week'), 'click',  function(){ setPeriod('week',this);  }, undefined, 'wire:period-week');
 bindOnce(document.getElementById('period-month'), 'click', function(){ setPeriod('month',this); }, undefined, 'wire:period-month');
 bindOnce(document.getElementById('period-all'), 'click',   function(){ setPeriod('all',this);   }, undefined, 'wire:period-all');
@@ -6138,6 +6153,7 @@ const MigrationFlow = (() => {
 
   function close() {
     modal?.classList.remove('open');
+    closeModalA11y(modal);
   }
 
   let initialized = false;
@@ -6199,6 +6215,7 @@ const ImportFlow = (() => {
     const profileIncluded = arr.some(e=>e.profile_snapshot) ? 'yes' : 'no';
     content.innerHTML = `<div>Echoes: ${arr.length}</div><div>Date Range: ${min} → ${max}</div><div>Profile Included: ${profileIncluded}</div><div>Import Type: vault json</div>`;
     modal?.classList.add('open');
+    openModalA11y(modal,{initialSelector:'#import-merge-btn'});
   }
   function close(){ modal?.classList.remove('open'); closeModalA11y(modal); imported=null; }
   document.getElementById('import-merge-btn')?.addEventListener('click', () => {
@@ -6230,14 +6247,17 @@ bindOnce(document.getElementById('import-file'), 'change', function() {
 }, undefined, 'wire:import-file-change');
 
 bindOnce(document, 'keydown', e => {
-  if (e.key === 'Escape') {
-    document.getElementById('node-detail')?.classList.remove('open');
-    document.getElementById('fun-modal')?.classList.remove('open');
-    document.getElementById('onboarding')?.classList.remove('open');
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-    DebugPanel?.ensure?.();
-  }
+  if (e.key !== 'Escape' || e.defaultPrevented) return;
+  const closers = [
+    ['special-access-modal','#special-access-close'],
+    ['import-preview-modal','#import-cancel-btn'],
+    ['migration-modal','#migration-keep-btn'],
+    ['node-detail','#detail-close-btn'],
+    ['fun-modal','#fun-modal-close']
+  ];
+  const active = closers.find(([id]) => document.getElementById(id)?.classList.contains('open'));
+  if (active) { e.preventDefault(); document.querySelector(active[1])?.click(); }
+  DebugPanel?.ensure?.();
 }, undefined, 'wire:global-escape-close');
 
 bindOnce(document, 'visibilitychange', () => { state.tabHidden = document.hidden; if (document.hidden) ConnectionCanvas.stop(); else { Cosmos.refresh(); if (state.currentView === 'timeline') ConnectionCanvas.render(); } }, undefined, 'wire:visibility');

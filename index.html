@@ -260,7 +260,7 @@ window.ECHOVAULT_CONFIG = {
         <div class="form-section">
           <label class="form-label" for="intensity-slider">Intensity</label>
           <div class="intensity-row">
-            <input type="range" class="intensity-slider" id="intensity-slider" min="1" max="10" value="5" aria-valuenow="5" aria-valuemin="1" aria-valuemax="10">
+            <input type="range" class="intensity-slider" id="intensity-slider" min="1" max="10" value="5" aria-label="Intensity level" aria-valuenow="5" aria-valuemin="1" aria-valuemax="10">
             <div class="intensity-value" id="intensity-val" aria-live="polite">5</div>
           </div>
         </div>
@@ -269,7 +269,7 @@ window.ECHOVAULT_CONFIG = {
         <div class="form-section">
           <label class="form-label" for="silence-slider">Silence Level — how hard was it to express this?</label>
           <div class="silence-row">
-            <input type="range" class="intensity-slider" id="silence-slider" min="1" max="10" value="3" style="accent-color:var(--reflective)" aria-valuenow="3" aria-valuemin="1" aria-valuemax="10">
+            <input type="range" class="intensity-slider" id="silence-slider" min="1" max="10" value="3" style="accent-color:var(--reflective)" aria-label="Silence level" aria-valuenow="3" aria-valuemin="1" aria-valuemax="10">
             <div class="intensity-value" id="silence-val" style="color:var(--reflective);font-size:20px" aria-live="polite">3</div>
           </div>
           <div class="silence-labels"><span>easy to share</span><span>impossible to say</span></div>
@@ -278,7 +278,8 @@ window.ECHOVAULT_CONFIG = {
         <!-- THOUGHT -->
         <div class="form-section">
           <label class="form-label" for="thought-input">Thought Fragment <span style="opacity:.4;font-size:9px">(optional)</span></label>
-          <textarea class="thought-area" id="thought-input" placeholder="Let it be incomplete. Let it be honest." rows="4"></textarea>
+          <textarea class="thought-area" id="thought-input" placeholder="Write a note for this echo, if it has words." rows="4" aria-describedby="thought-help"></textarea>
+          <p class="thought-help" id="thought-help">Optional: leave a small thought inside this echo, or let it stay silent.</p>
           <div class="void-toggle" id="void-toggle" role="checkbox" aria-checked="false" tabindex="0">
             <div class="toggle-box" id="void-box" aria-hidden="true">✓</div>
             <span class="toggle-label">Void Entry — no words, only feeling</span>
@@ -317,7 +318,15 @@ window.ECHOVAULT_CONFIG = {
       <div id="timeline-tide-label" style="font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:right"></div>
     </div>
     <div class="timeline-season-card" id="timeline-season-card" aria-live="polite"></div>
-    <div style="font-family:var(--font-mono);font-size:10px;color:var(--muted);margin:4px 2px 10px">Legend: calm 🌊 · chaos ⚡ · reflective 🌙 · anxious 🌀 · joyful 🌸 · empty 🌑</div>
+    <div class="timeline-legend" aria-label="Timeline mood color legend">
+      <span class="timeline-legend-title">Mood signals</span>
+      <span class="timeline-legend-item"><i style="--legend-color:var(--calm)" aria-hidden="true"></i>calm</span>
+      <span class="timeline-legend-item"><i style="--legend-color:var(--chaos)" aria-hidden="true"></i>chaos</span>
+      <span class="timeline-legend-item"><i style="--legend-color:var(--reflective)" aria-hidden="true"></i>reflective</span>
+      <span class="timeline-legend-item"><i style="--legend-color:var(--anxious)" aria-hidden="true"></i>anxious</span>
+      <span class="timeline-legend-item"><i style="--legend-color:var(--joyful)" aria-hidden="true"></i>joyful</span>
+      <span class="timeline-legend-item"><i style="--legend-color:#77778a" aria-hidden="true"></i>empty</span>
+    </div>
 
     <div id="timeline-empty" class="empty-state" style="display:none">
       <div class="empty-icon" aria-hidden="true">🌌</div>
@@ -429,7 +438,7 @@ window.ECHOVAULT_CONFIG = {
 </div><!-- /app-shell -->
 
 <!-- NODE DETAIL PANEL -->
-<div class="node-detail" id="node-detail" role="dialog" aria-modal="true" aria-label="Echo detail">
+<div class="node-detail" id="node-detail" role="dialog" aria-modal="true" aria-label="Echo detail" aria-hidden="true" tabindex="-1">
   <div class="detail-card" id="detail-card">
     <button class="detail-close" id="detail-close-btn" aria-label="Close detail">×</button>
     <div class="detail-mood-badge" id="detail-badge"></div>
@@ -444,15 +453,15 @@ window.ECHOVAULT_CONFIG = {
 </div>
 
 <!-- FUN MODAL -->
-<div class="fun-modal" id="fun-modal" role="dialog" aria-modal="true" aria-label="Ritual artifact">
+<div class="fun-modal" id="fun-modal" role="dialog" aria-modal="true" aria-label="Ritual artifact" aria-hidden="true" tabindex="-1">
   <div class="fun-modal-card" id="fun-modal-inner">
-    <button class="modal-close-btn" id="fun-modal-close" aria-label="Close modal">×</button>
+    <button class="modal-close-btn" id="fun-modal-close" aria-label="Close ritual modal">×</button>
     <div id="fun-modal-content" aria-live="polite"></div>
   </div>
 </div>
 
 
-<div class="cinematic-modal" id="migration-modal" role="dialog" aria-modal="true" aria-label="Local vault migration">
+<div class="cinematic-modal" id="migration-modal" role="dialog" aria-modal="true" aria-label="Local vault migration" aria-hidden="true" tabindex="-1">
   <div class="cinematic-card">
     <h3>Your echoes are still here.</h3>
     <p id="migration-copy">You have 0 echoes saved on this device. Sync them to your account so your universe can follow you?</p>
@@ -464,7 +473,7 @@ window.ECHOVAULT_CONFIG = {
   </div>
 </div>
 
-<div class="cinematic-modal" id="import-preview-modal" role="dialog" aria-modal="true" aria-label="Import preview">
+<div class="cinematic-modal" id="import-preview-modal" role="dialog" aria-modal="true" aria-label="Import preview" aria-hidden="true" tabindex="-1">
   <div class="cinematic-card">
     <h3>Preview Incoming Vault</h3>
     <div id="import-preview-content"></div>
