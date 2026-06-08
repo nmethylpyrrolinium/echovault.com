@@ -1820,3 +1820,48 @@ body{padding-bottom:calc(var(--safe-bottom) + 16px)}
   #pwa-banner{left:8px;right:8px;bottom:calc(8px + var(--safe-bottom));max-width:calc(100vw - 16px);padding:10px}
   #pwa-install-btn{min-width:64px;padding-inline:10px}
 }
+
+/* ── PHASE 3: ACCESSIBILITY + MOBILE POLISH ── */
+.timeline-legend{
+  display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;
+  margin:6px 0 14px;padding:10px 12px;max-width:100%;
+  border:1px solid rgba(255,255,255,.11);border-radius:12px;
+  background:rgba(12,12,22,.62);color:rgba(255,255,255,.86);
+  font-family:var(--font-mono);font-size:10px;line-height:1.4;letter-spacing:.04em;
+}
+.timeline-legend-title{color:var(--gold);text-transform:uppercase;letter-spacing:.14em;margin-right:2px}
+.timeline-legend-item{display:inline-flex;align-items:center;gap:6px;min-width:0;white-space:nowrap}
+.timeline-legend-item i{
+  width:12px;height:12px;flex:0 0 12px;border-radius:50%;background:var(--legend-color);
+  border:1px solid rgba(255,255,255,.72);box-shadow:0 0 0 2px rgba(255,255,255,.07),0 0 10px var(--legend-color);
+}
+.thought-help{margin-top:7px;color:rgba(255,255,255,.64);font-size:12px;font-style:italic;line-height:1.5}
+.thought-area::placeholder{color:rgba(255,255,255,.48);opacity:1}
+
+.node-detail,.fun-modal,.cinematic-modal{overscroll-behavior:contain}
+.fun-modal-card,.detail-card,.cinematic-card{scrollbar-gutter:stable}
+.fun-modal-card{padding-bottom:calc(24px + var(--safe-bottom))}
+.modal-close-btn,.detail-close,.special-close{min-width:44px;min-height:44px;touch-action:manipulation}
+.submit-entry-btn,.btn-primary,.btn-ghost,.vault-btn,.fun-card,.period-btn,.replay-drift-cta,.settings-secondary-btn{min-height:44px;touch-action:manipulation}
+
+@media(max-width:480px){
+  .timeline-legend{gap:9px 11px;padding:11px;font-size:10px}
+  .timeline-legend-title{flex-basis:100%}
+  .timeline-legend-item i{width:13px;height:13px;flex-basis:13px}
+  .fun-modal{padding:calc(8px + var(--safe-top)) 8px calc(8px + var(--safe-bottom))}
+  .fun-modal-card{width:100%;max-width:100%;padding:14px;padding-bottom:calc(24px + var(--safe-bottom))}
+  .ritual-actions .receipt-action-btn{flex:1 1 140px}
+}
+@media(max-height:620px), (orientation:landscape) and (max-height:720px){
+  .fun-modal,.cinematic-modal,.node-detail{align-items:flex-start;padding-top:calc(8px + var(--safe-top));padding-bottom:calc(8px + var(--safe-bottom));overflow-y:auto}
+  .fun-modal-card,.cinematic-card,.detail-card{max-height:calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);overflow-y:auto;overflow-x:hidden;padding-bottom:calc(28px + var(--safe-bottom))}
+  .modal-close-btn,.detail-close{position:sticky;top:0;float:right;z-index:12;background:rgba(10,10,18,.94);backdrop-filter:blur(10px)}
+  .ritual-scene canvas{height:min(220px,42dvh)}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto!important}
+  *,*::before,*::after{animation-delay:0s!important;animation-iteration-count:1!important;scroll-behavior:auto!important}
+  #ripple-canvas,#whip-canvas{display:none!important}
+  .bubble-wrap,.echo-bubble,.gravity-ring,.ritual-loading-spinner,.reliever-breath,.shatter-hint,.squeeze-breath-ring{animation:none!important;transform:none}
+  .fun-modal-card,.detail-card,.cinematic-card{animation:none!important}
+}

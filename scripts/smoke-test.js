@@ -162,7 +162,7 @@ const iifeCloseIndex = script.lastIndexOf('})();');
 
 if (!script.includes('function refreshEchoDependentUI() {')) failures.push('script.js missing refreshEchoDependentUI helper');
 if (!script.includes('refreshEchoDependentUI();')) failures.push('script.js missing refreshEchoDependentUI usage');
-if (!script.includes("wrap.setAttribute('aria-label',`Open echo from ${new Date(echo.date).toLocaleDateString()} with mood ${echo.mood}`);")) failures.push('Timeline aria label should use echo, not undefined event var');
+if (!script.includes("wrap.setAttribute('aria-label',`Open ${echo.mood} echo from ${new Date(echo.date).toLocaleDateString()}, intensity ${echo.intensity || 0}, silence ${echo.silence || 0}`);")) failures.push('Timeline aria label should use echo, not undefined event var');
 if (!script.includes('timeline-fallback-card')) failures.push('Timeline fallback card renderer missing');
 if (!script.includes("if (e.key !== 'Enter' && e.key !== ' ') return;")) failures.push('Timeline keyboard open handler missing');
 if (!script.includes("document.getElementById('import-merge-btn')") || !script.includes('refreshEchoDependentUI();')) {
