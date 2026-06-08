@@ -121,6 +121,11 @@ if (!readme.includes('60 seconds')) failures.push('README missing 60 seconds rat
 if (!script.includes('beforeinstallprompt')) failures.push('script.js missing beforeinstallprompt handling');
 if (!script.includes('pwa-dismiss-btn')) failures.push('script.js missing dismiss button wiring');
 if (!(script.includes('serviceWorker.register') || index.includes('serviceWorker.register'))) failures.push('script.js or index missing service worker registration');
+if (!script.includes("localStorage.setItem(DISMISS_KEY, '1')") || !script.includes('syncBannerSpace') || !script.includes("state.currentView !== 'home'")) failures.push('PWA banner dismissal, measured clearance, or non-blocking view guard missing');
+if (!style.includes('.view{padding-bottom:calc(80px + var(--safe-bottom) + var(--pwa-space,0px))')) failures.push('Views missing PWA-aware bottom clearance');
+if (!style.includes('::-webkit-scrollbar{width:12px;height:12px}') || !style.includes('scrollbar-color:rgba(201,168,76,.58)')) failures.push('Usable golden scrollbar regression');
+if (!style.includes('.mood-btn{min-height:92px') || !style.includes('grid-template-columns:repeat(2,minmax(0,1fr));gap:12px')) failures.push('Mobile mood-card touch targets or spacing regression');
+if (!script.includes('data-ritual-action="close"') || !script.includes("'ritual:delegated-close'")) failures.push('Crash Report delegated close action missing');
 
 // Phase 2 — Emotional intelligence checks
 if (!script.includes('PatternEngine')) failures.push('script.js missing PatternEngine');

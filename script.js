@@ -1251,6 +1251,7 @@ const Login = (() => {
 
 const PWAInstall = (() => {
   let deferredInstallPrompt = null;
+  let initialized = false;
   const banner = document.getElementById('pwa-banner');
   const installBtn = document.getElementById('pwa-install-btn');
   const dismissBtn = document.getElementById('pwa-dismiss-btn');
@@ -1316,10 +1317,19 @@ const PWAInstall = (() => {
     return Boolean(data.hasEcho || distinctViews >= 3 || data.activeMs >= ACTIVE_MS_TARGET);
   }
   function syncStandaloneClass() { document.documentElement.classList.toggle('is-standalone', Boolean(isStandalone())); }
-  function setBannerVisible(visible) { banner?.classList.toggle('show', visible); document.documentElement.style.setProperty('--pwa-space', visible ? '92px' : '0px'); }
+  function syncBannerSpace() {
+    const height = banner?.classList.contains('show') ? Math.ceil(banner.getBoundingClientRect().height + 24) : 0;
+    document.documentElement.style.setProperty('--pwa-space', `${height}px`);
+  }
+  function setBannerVisible(visible) {
+    banner?.classList.toggle('show', visible);
+    if (visible) requestAnimationFrame(syncBannerSpace);
+    else document.documentElement.style.setProperty('--pwa-space', '0px');
+  }
   function hide() { setBannerVisible(false); }
   function show(fallback = false) {
     if (!document.body.classList.contains('app-unlocked')) return;
+    if (state.currentView !== 'home') { hide(); return; }
     if (localStorage.getItem(DISMISS_KEY) || hasRecentInstallAttempt() || isStandalone() || !isEligible()) return;
     if (fallback) {
       installBtn.textContent = 'How';
@@ -1333,11 +1343,13 @@ const PWAInstall = (() => {
     setBannerVisible(true);
   }
   function init() {
+    if (initialized) return;
+    initialized = true;
     syncStandaloneClass();
     trackEngagement({ view: state.currentView });
     AppEnvironment.applyClasses();
     window.matchMedia('(display-mode: standalone)').addEventListener?.('change', () => { syncStandaloneClass(); if (isStandalone()) hide(); });
-    window.addEventListener('resize', AppEnvironment.applyClasses);
+    window.addEventListener('resize', () => { AppEnvironment.applyClasses(); syncBannerSpace(); });
     document.addEventListener('visibilitychange', () => { const data = trackEngagement({ view: state.currentView }); if (!document.hidden && data.activeMs >= ACTIVE_MS_TARGET) show(false); if (document.hidden) hide(); });
     ['nav-home','nav-entry','nav-timeline','nav-wrapped','nav-fun'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => { trackEngagement({ view: id.replace('nav-','') }); show(false); }));
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredInstallPrompt = e; trackEngagement({ view: state.currentView }); show(false); });
@@ -5202,7 +5214,7 @@ Insight: ${d.insight}`;
         <div class="crash-line"><span class="crash-key">echoes_logged:</span> <span class="crash-val">${state.echoes.length}</span></div>
         <div class="crash-line"><span class="crash-key">current_season:</span> <span class="crash-val">${escapeHTML(patterns.emotionalSeason?.title || 'Quiet Winter')}</span></div>
         <div class="crash-stack">Crash Report appears when recent echoes show high intensity or high silence. For now, the system is choosing calm containment.</div>
-        <button class="crash-btn" id="crash-close">close gently</button>
+        <button type="button" class="crash-btn" id="crash-close" data-ritual-action="close">close gently</button>
       </div>`;
     }
     return `<div class="crash-report">
@@ -5214,7 +5226,7 @@ Insight: ${d.insight}`;
       <div class="crash-line"><span class="crash-key">silence_level:</span> <span class="crash-val">${escapeHTML(recent?.silence ?? patterns.averageSilence)}/10</span></div>
       <div class="crash-line"><span class="crash-key">recovery_mode:</span> <span class="crash-val">rest / water / one smaller breath</span></div>
       <div class="crash-stack">Stack trace:<br>&nbsp;&nbsp;at Human.feel() [signal.js:${Math.floor(Math.random()*999)}]<br>&nbsp;&nbsp;at EchoVault.contain() [ritual.js:${Math.floor(Math.random()*99)}]<br>&nbsp;&nbsp;at Universe.continue() [existence.js:1]</div>
-      <button class="crash-btn" id="crash-close">ignore &amp; continue</button>
+      <button type="button" class="crash-btn" id="crash-close" data-ritual-action="close">ignore &amp; continue</button>
     </div>`;
   }
 
@@ -5506,7 +5518,12 @@ Insight: ${d.insight}`;
     trapModalTab(e, modal);
   });
   modal.addEventListener('click', e => { if(e.target===modal) close(); });
-  content.addEventListener('click', e => { if(e.target.id==='crash-close') close(); });
+  bindOnce(content, 'click', e => {
+    const closeButton = e.target.closest?.('[data-ritual-action="close"], #crash-close');
+    if (!closeButton || !content.contains(closeButton)) return;
+    e.preventDefault();
+    close();
+  }, undefined, 'ritual:delegated-close');
 
   return {open, hasBuilder};
 })();
@@ -6277,13 +6294,8 @@ const ServiceWorkerManager = (() => {
     if (!('serviceWorker' in navigator)) return;
     if (sessionStorage.getItem(LAST_VERSION_KEY) === APP_VERSION) sessionStorage.removeItem(UPDATE_GUARD_KEY);
     sessionStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
-    let reg;
-    try {
-      reg = await navigator.serviceWorker.register('sw.js');
-    } catch (error) {
-      console.warn('Service worker registration failed; continuing without offline cache.', error);
-      return;
-    }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    if (!reg) return;
     const refreshOnce = () => {
       if (sessionStorage.getItem(UPDATE_GUARD_KEY) === APP_VERSION) return;
       sessionStorage.setItem(UPDATE_GUARD_KEY, APP_VERSION);
