@@ -1,18 +1,19 @@
 {
   "name": "EchoVault — Your Emotional Universe",
   "short_name": "EchoVault",
-  "description": "A living archive of who you are becoming. Not a diary — a cosmos.",
+  "description": "A living archive where memories become floating emotional artifacts.",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#050508",
-  "theme_color": "#050508",
+  "theme_color": "#0a0a12",
   "orientation": "portrait-primary",
   "lang": "en",
-  "categories": ["lifestyle", "health"],
+  "categories": ["lifestyle"],
   "icons": [
     {"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
   ],
   "shortcuts": [
-    {"name":"New Echo","short_name":"Echo","url":"./?action=new-echo","icons":[{"src":"icons/icon.svg","sizes":"any"}]}
+    {"name":"New Echo","short_name":"Echo","url":"./?action=new-echo","icons":[{"src":"icons/icon.svg","sizes":"any","type":"image/svg+xml"}]}
   ]
 }
