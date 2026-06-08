@@ -879,11 +879,23 @@ const Nav = (() => {
     }
   });
   function show(name) {
+    if (!views.includes(name)) return;
+    const previous = state.currentView;
+    const shouldTransition = previous && previous !== name && !prefersReducedMotion();
+    document.body.classList.toggle('is-navigating', Boolean(shouldTransition));
+    document.body.dataset.activeChamber = name;
     views.forEach(v => {
-      viewEls[v]?.classList.toggle('active', v === name);
-      navBtns[v]?.classList.toggle('active',  v === name);
-      navBtns[v]?.setAttribute('aria-current', v === name ? 'page' : 'false');
+      const isActive = v === name;
+      viewEls[v]?.classList.toggle('active', isActive);
+      viewEls[v]?.classList.toggle('view-entering', isActive && shouldTransition);
+      navBtns[v]?.classList.toggle('active', isActive);
+      if (isActive) navBtns[v]?.setAttribute('aria-current', 'page');
+      else navBtns[v]?.removeAttribute('aria-current');
     });
+    if (shouldTransition) setTimeout(() => {
+      viewEls[name]?.classList.remove('view-entering');
+      document.body.classList.remove('is-navigating');
+    }, 380);
     state.currentView = name;
     if (name === 'timeline') { Timeline.render(); setTimeout(ConnectionCanvas.render, 60); }
     if (name === 'wrapped')  Wrapped.render();
@@ -2808,6 +2820,10 @@ const OrbInteraction = (() => {
     dragOrb = orb;
     dragOffX = e.clientX - orb.x;
     dragOffY = e.clientY - orb.y;
+    orb._pointerStartX = e.clientX;
+    orb._pointerStartY = e.clientY;
+    orb._movedDistance = 0;
+    orb.el.dataset.dragged = 'false';
     orb.held = true;
     orb.pressed = true;
     document.body.classList.add('timeline-dragging');
@@ -2828,13 +2844,18 @@ const OrbInteraction = (() => {
       orb.lastTap = now;
       orb.targetScale = 1.14;
       setTimeout(() => { orb.targetScale = 1; }, 220);
-      const angle = Math.atan2(orb.vy, orb.vx) || Math.random()*Math.PI*2;
-      orb.vx += Math.cos(angle)*1.5;
-      orb.vy += Math.sin(angle)*1.5;
+      if (orb._movedDistance > 10) {
+        const angle = Math.atan2(orb.vy, orb.vx) || Math.random()*Math.PI*2;
+        orb.vx += Math.cos(angle)*1.5;
+        orb.vy += Math.sin(angle)*1.5;
+      } else {
+        orb.vx *= .25; orb.vy *= .25;
+      }
       document.removeEventListener('pointerup', upFn);
       document.removeEventListener('pointercancel', cancelFn);
       document.removeEventListener('pointermove', moveFn);
       document.body.classList.remove('timeline-dragging');
+      setTimeout(() => { if (!orb.held) orb.el.dataset.dragged = 'false'; }, 350);
     };
     const upFn = () => endDrag();
     const cancelFn = () => endDrag();
@@ -2842,9 +2863,11 @@ const OrbInteraction = (() => {
       if (!orb.held) return;
       const tx = ev.clientX - dragOffX;
       const ty = ev.clientY - dragOffY;
-      orb.vx += (tx - orb.x) * 0.18;
-      orb.vy += (ty - orb.y) * 0.18;
-      orb.vx *= 0.6; orb.vy *= 0.6;
+      orb._movedDistance = Math.hypot(ev.clientX - orb._pointerStartX, ev.clientY - orb._pointerStartY);
+      if (orb._movedDistance > 10) orb.el.dataset.dragged = 'true';
+      orb.vx += (tx - orb.x) * 0.24;
+      orb.vy += (ty - orb.y) * 0.24;
+      orb.vx *= 0.55; orb.vy *= 0.55;
       if (Math.random() < .15) spawnSparkle(ev.clientX, ev.clientY, orb.color);
     };
     document.addEventListener('pointerup',   upFn,   {once:true});
@@ -2934,6 +2957,7 @@ const OrbInteraction = (() => {
 })();
 
 /* ── ENTRY FORM ── */
+let pendingTimelineRevealId = null;
 const EntryForm = (() => {
   let voidMode = false, selectedMood = null;
   const intensitySlider = document.getElementById('intensity-slider');
@@ -3050,6 +3074,7 @@ const EntryForm = (() => {
       date:      new Date().toISOString()
     };
     state.echoes.unshift(echo);
+    pendingTimelineRevealId = echo.id;
     PWAInstall.trackEngagement?.();
     Storage.save(state.echoes);
     const discoveredMaterials = MaterialEngine.generateForEcho(echo);
@@ -3088,6 +3113,7 @@ const EntryForm = (() => {
 
     formWrap.style.display = 'none';
     confirmEl.classList.add('show');
+    setTimeout(() => Toast.show('Echo released into the Universe.'), 260);
     applyVoidState(false);
   }
 
@@ -3176,6 +3202,7 @@ const Timeline = (() => {
 
       const wrap = document.createElement('div');
       wrap.className = 'bubble-wrap';
+      if (echo.id === pendingTimelineRevealId) wrap.classList.add('newly-released');
       wrap.setAttribute('role','button');
       wrap.setAttribute('tabindex','0');
       wrap.setAttribute('aria-label',`Open ${echo.mood} echo from ${new Date(echo.date).toLocaleDateString()}, intensity ${echo.intensity || 0}, silence ${echo.silence || 0}`);
@@ -3213,7 +3240,7 @@ const Timeline = (() => {
       wrap.appendChild(bubble);
 
       wrap.addEventListener('click', (e) => {
-        if (Math.abs(e.movementX||0) > 5 || Math.abs(e.movementY||0) > 5) return;
+        if (wrap.dataset.dragged === 'true' || Math.abs(e.movementX||0) > 10 || Math.abs(e.movementY||0) > 10) return;
         const rect = wrap.getBoundingClientRect();
         spawnResidue(rect.left+rect.width/2, rect.top+rect.height/2, color);
         if (echo.void) spawnVoidPulse(rect.left+rect.width/2, rect.top+rect.height/2);
@@ -3223,6 +3250,7 @@ const Timeline = (() => {
       wrap.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
+        wrap.dataset.dragged = 'false';
         wrap.click();
       });
 
@@ -3237,6 +3265,11 @@ const Timeline = (() => {
     ConnectionCanvas.setOrbs(placed.map(p => ({x:p.x, y:p.y, mood:p.mood, echo:p.echo})), true);
     ConnectionCanvas.render();
     if (!renderedNodeCount) renderFallbackCards();
+    if (pendingTimelineRevealId) {
+      const released = field.querySelector(`[data-id="${pendingTimelineRevealId}"]`);
+      if (released) setTimeout(() => released.classList.remove('newly-released'), prefersReducedMotion() ? 0 : 2400);
+      pendingTimelineRevealId = null;
+    }
 
     document.getElementById('timeline-tide-label').textContent =
       (() => { const h = new Date().getHours(); return (h>=22||h<5)?'🌊 memory tide active':''; })();
@@ -4821,12 +4854,21 @@ const Rituals = (() => {
     receipt:  { icon:'🧾', title:'Your Mood Receipt', body:'This is a <strong>receipt of your emotions</strong> — itemized, timestamped, and totally yours. Pick a theme, then save or share your emotional bill.' },
     dna:      { icon:'🧬', title:'Your Emotion DNA', body:'This card reveals your <strong>emotional archetype</strong> — the pattern woven through all your echoes. It shifts as you do.' },
     crash:    { icon:'💻', title:'Crash Report', body:'When feelings overflow, systems crash. This is your <strong>emotional stack trace</strong> — absurd, honest, and very real.' },
-    sound:    { icon:'🎧', title:'Echo Soundprint', body:'Music matched to your current emotional frequency. <strong>Tap Spotify or YouTube</strong> to open the song. Breathe with the orb below.' },
+    sound:    { icon:'🎧', title:'Echo Soundprint', body:'Music matched to your current emotional frequency appears here first. <strong>External listening is always your choice</strong> and opens in a new tab. Breathe with the orb below.' },
     shatter:  { icon:'🪞', title:'Shatter Softly', body:'A quiet ritual of release. <strong>Tap the surface</strong> to begin cracking it. Hold to spread the fractures. Let it break when you\'re ready.<br><br>This is not a game. It\'s a ceremony.' },
     vsvs:     { icon:'⚔️', title:'Inner Conflict', body:'Your past self meets your present self. <strong>Drag the orbs</strong> to push them apart or let them collide. Watch what happens between them.' }
   };
 
+  function dismissRitualLayers({ closeModal = false } = {}) {
+    document.querySelectorAll('.ritual-ob-overlay').forEach(layer => layer.remove());
+    if (closeModal && modal?.classList.contains('open')) {
+      modal.classList.remove('open');
+      closeModalA11y(modal);
+    }
+  }
+
   function showRitualOnboarding(type, onStart) {
+    dismissRitualLayers({ closeModal:true });
     const data = RITUAL_OB_DATA[type];
     if (!data) { onStart(); return; }
     const overlay = document.createElement('div');
@@ -4882,9 +4924,11 @@ const Rituals = (() => {
     if (premiumRitualMap[type] && !UserAccess.requirePremium(premiumRitualMap[type], { openSettings:true })) return;
     const builders = getBuilders();
     const fn = builders[type];
-    if (!fn) { content.innerHTML = unknownRitualHTML(type); modal.classList.add('open'); openModalA11y(modal,{initialSelector:'#fun-modal-close'}); return; }
+    if (!fn) { dismissRitualLayers(); content.innerHTML = unknownRitualHTML(type); modal.classList.add('open'); openModalA11y(modal,{initialSelector:'#fun-modal-close'}); return; }
     const shown = getRitualOb();
     const doOpen = () => {
+      dismissRitualLayers();
+      modal.dataset.ritual = type;
       modal.classList.add('open');
       openModalA11y(modal,{initialSelector:'#fun-modal-close'});
       content.innerHTML = ritualLoadingHTML(type);
@@ -4910,6 +4954,9 @@ const Rituals = (() => {
   }
 
   function postBuild(type) {
+    const result = content.firstElementChild;
+    if (result) result.classList.add('ritual-result-card', `ritual-result-${type}`);
+    content.querySelectorAll('.track-link').forEach(link => link.addEventListener('click', () => Toast.show('Opening outside EchoVault…')));
     if (type === 'vsvs') setTimeout(startConflictAnimation, 100);
     if (type === 'shatter') setTimeout(() => ShatterSoftly.init(), 80);
     if (type === 'museum') {
@@ -4983,7 +5030,7 @@ const Rituals = (() => {
       const replayBtn = document.createElement('button');
       replayBtn.className = 'ritual-ob-replay';
       replayBtn.textContent = '? how to use';
-      replayBtn.addEventListener('click', () => showRitualOnboarding('receipt', () => {}));
+      replayBtn.addEventListener('click', () => showRitualOnboarding('receipt', () => open('receipt')));
       content.appendChild(replayBtn);
       document.querySelectorAll('.receipt-themes .theme-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -5013,7 +5060,7 @@ const Rituals = (() => {
       replayBtn.className = 'ritual-ob-replay';
       replayBtn.style.cssText='display:block;margin:14px auto 0;';
       replayBtn.textContent = '? how to use';
-      replayBtn.addEventListener('click', () => showRitualOnboarding(type, () => {}));
+      replayBtn.addEventListener('click', () => showRitualOnboarding(type, () => open(type)));
       content.appendChild(replayBtn);
     }
   }
@@ -5021,7 +5068,12 @@ const Rituals = (() => {
 
   function initLanternInteraction(){const canvas=document.getElementById('lantern-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');let glow=.4,taps=0,time=0,completed=false;const mood=PatternEngine.analyze(state.echoes).dominantMood||'reflective';const particles=[];const msg=document.getElementById('lantern-msg');const scene=document.querySelector('.lantern-scene');const frame=()=>{const w=canvas.width,h=canvas.height;time+=.012;ctx.clearRect(0,0,w,h);ctx.fillStyle='#07090f';ctx.fillRect(0,0,w,h);ctx.fillStyle='rgba(80,90,110,.12)';ctx.fillRect(0,h*.7,w,h*.3);const r=28+glow*8+Math.sin(time)*2;const g=ctx.createRadialGradient(w/2,h*.56,0,w/2,h*.56,r*2.2);g.addColorStop(0,`rgba(240,198,115,${.2+glow*.1})`);g.addColorStop(1,'transparent');ctx.fillStyle=g;ctx.beginPath();ctx.arc(w/2,h*.56,r*2.2,0,6.28);ctx.fill();ctx.fillStyle=`rgba(243,201,126,${.5+glow*.06})`;ctx.beginPath();ctx.arc(w/2,h*.58,r,0,6.28);ctx.fill();for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.y-=p.vy;p.x+=p.vx;p.life-=.02;ctx.fillStyle=`rgba(248,214,155,${Math.max(0,p.life)})`;ctx.fillRect(p.x,p.y,2,2);if(p.life<=0)particles.splice(i,1);}if(!prefersReducedMotion() && document.getElementById('lantern-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(frame)};frame();canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();canvas.click();}});canvas.addEventListener('click',()=>{taps++;glow=Math.min(8,glow+1);scene?.setAttribute('data-state',taps>=4?'alive':(taps>=2?'faint':'unlit'));const particleBurst = prefersReducedMotion() ? 2 : (6+taps); for(let i=0;i<particleBurst;i++)particles.push({x:canvas.width/2+(Math.random()*36-18),y:canvas.height*.55,vx:Math.random()*.8-.4,vy:1+Math.random()*1.4,life:.8});if(taps===1)msg.textContent='The lantern wakes.';if(taps===2)msg.textContent='A faint warmth answers.';if(taps>=4){msg.textContent='Still here is still a signal.';document.getElementById('lantern-actions').hidden=false;scene?.classList.add('ritual-complete');if(!completed){completed=true;GentleQuests.evaluate('lantern_lit');VaultInventory.addMaterials([{name:'Moon Thread',qty:1}]);Toast.show('+1 Moon Thread');}}});document.getElementById('save-lantern')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'lantern',title:'Void Lantern',subtitle:'Still here is still a signal.',data:{glowLevel:glow,mood,created_at:new Date().toISOString()}});Toast.show('Lantern saved to museum ✓');});document.getElementById('dl-lantern')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderRelicCard({title:'Void Lantern',rarity:'luminous',coordinates:'EV-LIGHT',mood}),'void-lantern-card.png'));}
   function initStormJarInteraction(){const canvas=document.getElementById('storm-canvas');if(!canvas)return;const ctx=canvas.getContext('2d');const p=PatternEngine.analyze(state.echoes);let sparks=Math.max(prefersReducedMotion()?4:10,Math.round((p.averageIntensity||4)*(prefersReducedMotion()?1:2)));let taps=0,shake=0,flash=0;const msg=document.getElementById('storm-msg');const scene=document.querySelector('.storm-scene');const draw=()=>{const w=canvas.width,h=canvas.height;ctx.clearRect(0,0,w,h);ctx.fillStyle='#080a12';ctx.fillRect(0,0,w,h);const ox=(Math.random()-.5)*shake;ctx.save();ctx.translate(ox,0);ctx.strokeStyle='rgba(180,200,255,.65)';ctx.lineWidth=2;ctx.strokeRect(w/2-70,h/2-90,140,180);ctx.restore();for(let i=0;i<sparks;i++){ctx.strokeStyle='rgba(222,82,120,.6)';ctx.beginPath();const x=w/2-50+Math.random()*100,y=h/2-70+Math.random()*140;ctx.moveTo(x,y);ctx.lineTo(x+Math.random()*22-11,y+Math.random()*22-11);ctx.stroke();}if(flash>0){ctx.strokeStyle=`rgba(255,230,180,${flash})`;ctx.beginPath();ctx.moveTo(w/2-20,h/2-70);ctx.lineTo(w/2+16,h/2-30);ctx.lineTo(w/2-8,h/2+20);ctx.stroke();flash=Math.max(0,flash-.06);}shake*=.88;if(!prefersReducedMotion() && document.getElementById('storm-canvas') && document.getElementById('fun-modal')?.classList.contains('open')) requestAnimationFrame(draw)};draw();canvas.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();canvas.click();}});canvas.addEventListener('click',()=>{taps++;sparks=Math.min(52,sparks+4);shake=Math.min(14,shake+4);scene?.setAttribute('data-state',taps>=3?'contained':(taps>=2?'awake':'still'));if(taps===1)msg.textContent='Sparks begin to gather.';if(taps===2){msg.textContent='The jar trembles.';flash=.9;}if(taps>=3){msg.textContent='The storm has shape now.';document.getElementById('storm-actions').hidden=false;scene?.classList.add('ritual-complete');}});document.getElementById('save-storm')?.addEventListener('click',()=>{ArtifactArchive.saveArtifact({type:'stormjar',title:'Storm Jar',subtitle:'The storm has shape now.',data:{sparkCount:sparks,mood:'chaos',created_at:new Date().toISOString()}});Toast.show('Storm saved to museum ✓');});document.getElementById('dl-storm')?.addEventListener('click',()=>CinematicCardRenderer.downloadCanvas(CinematicCardRenderer.renderWeatherCard({name:'Storm Jar',summary:'The storm has shape now.',mood:'chaos'}),'storm-jar-card.png'));}
-  function close() { modal.classList.remove('open'); closeModalA11y(modal); }
+  function close() {
+    dismissRitualLayers();
+    modal.classList.remove('open');
+    modal.removeAttribute('data-ritual');
+    closeModalA11y(modal);
+  }
 
   /* Character image pool */
   const CHAR_IMGS = [
@@ -5310,11 +5362,13 @@ Insight: ${d.insight}`;
               <div class="track-song">${t.song}</div>
               <div class="track-artist">${t.artist}</div>
             </div>
-            <div class="track-reason">${t.reason}</div>
+            <div class="track-preview-meta"><span>${escapeHTML(family)} frequency</span><span>${escapeHTML(t.purpose || 'listen')}</span></div>
+            <div class="track-reason">${escapeHTML(t.reason)}</div>
             <div class="track-links">
-              <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on Spotify (opens in new tab)">Spotify</a>
-              <a class="track-link youtube" href="${t.youtube}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on YouTube (opens in new tab)">YouTube</a>
+              <a class="track-link spotify" href="${t.spotify}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on Spotify (opens in new tab)">Open on Spotify ↗</a>
+              <a class="track-link youtube" href="${t.youtube}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHTML(t.song)} by ${escapeHTML(t.artist)} on YouTube (opens in new tab)">Open on YouTube ↗</a>
             </div>
+            <div class="track-external-note">External listening opens in a new tab. Your Echo remains here.</div>
           </div>
         </div>`).join('')}
       </div>

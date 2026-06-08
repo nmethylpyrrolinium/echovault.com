@@ -235,6 +235,23 @@ if (script.includes('Vault Synced')) failures.push('Vault Synced wording still p
 
 
 
+
+// Phase 4 — cinematic interaction polish checks
+[
+  ['chamber navigation state', 'dataset.activeChamber'],
+  ['reduced-motion-safe section navigation', 'shouldTransition = previous && previous !== name && !prefersReducedMotion()'],
+  ['Soundprint internal preview metadata', 'track-preview-meta'],
+  ['Soundprint external destination label', 'Open on YouTube ↗'],
+  ['ritual transient layer cleanup', 'dismissRitualLayers'],
+  ['new echo Universe confirmation', 'Echo released into the Universe.'],
+  ['new Timeline echo reveal', 'newly-released'],
+  ['Timeline touch drag threshold', 'orb._movedDistance > 10']
+].forEach(([label, marker]) => {
+  if (!script.includes(marker) && !style.includes(marker) && !index.includes(marker)) failures.push(`Phase 4 missing ${label}`);
+});
+if (!style.includes('@media(pointer:coarse){.bubble-wrap{touch-action:pan-y}')) failures.push('Timeline coarse-pointer touch scrolling/sensitivity safeguard missing');
+if (!style.includes('.view.active.view-entering') || !style.includes('@media(prefers-reduced-motion:reduce)')) failures.push('Phase 4 chamber transition or reduced-motion fallback missing');
+
 // Phase 3 — EchoSociety privacy-first foundation checks
 [
   ['SocietySignals exists', 'const SocietySignals = (() => {'],

@@ -1865,3 +1865,44 @@ body{padding-bottom:calc(var(--safe-bottom) + 16px)}
   .bubble-wrap,.echo-bubble,.gravity-ring,.ritual-loading-spinner,.reliever-breath,.shatter-hint,.squeeze-breath-ring{animation:none!important;transform:none}
   .fun-modal-card,.detail-card,.cinematic-card{animation:none!important}
 }
+
+/* ── PHASE 4: CINEMATIC INTERACTION POLISH ── */
+:root{--motion-micro:180ms;--motion-chamber:340ms;--ease-premium:cubic-bezier(.22,1,.36,1)}
+.view.active.view-entering{animation:chamberEnter var(--motion-chamber) var(--ease-premium) both}
+@keyframes chamberEnter{from{opacity:.18;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+body.is-navigating nav{border-bottom-color:rgba(201,168,76,.16)}
+.nav-links button{position:relative;isolation:isolate;transition:color var(--motion-micro) var(--ease-premium),background var(--motion-micro) var(--ease-premium),border-color var(--motion-micro) var(--ease-premium),transform var(--motion-micro) var(--ease-premium),box-shadow var(--motion-micro) var(--ease-premium)}
+.nav-links button::after{content:'';position:absolute;left:50%;right:50%;bottom:3px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:0;transition:left var(--motion-micro) var(--ease-premium),right var(--motion-micro) var(--ease-premium),opacity var(--motion-micro) ease}
+.nav-links button.active::after,.nav-links button[aria-current="page"]::after{left:20%;right:20%;opacity:.72}
+.nav-links button:hover,.nav-links button:focus-visible{transform:translateY(-1px);box-shadow:0 8px 22px rgba(0,0,0,.2)}
+.nav-links button:active{transform:translateY(0) scale(.97)}
+
+.btn-primary,.btn-ghost,.vault-btn,.submit-entry-btn,.fun-card,.mood-btn,.timeline-fallback-card,.receipt-action-btn{transition:transform var(--motion-micro) var(--ease-premium),border-color var(--motion-micro) ease,background var(--motion-micro) ease,box-shadow var(--motion-micro) ease,opacity var(--motion-micro) ease}
+.fun-card:hover,.mood-btn:hover,.timeline-fallback-card:hover{transform:translateY(-2px)}
+.btn-primary:active,.btn-ghost:active,.vault-btn:active,.submit-entry-btn:active,.fun-card:active,.mood-btn:active,.timeline-fallback-card:active,.receipt-action-btn:active{transform:translateY(1px) scale(.985)}
+
+/* A predictable layer hierarchy: ambient UI < hints < install banner < modal < modal card < toast. */
+nav{z-index:100}.ritual-ob-overlay{z-index:700}#pwa-banner{z-index:800}.node-detail,.fun-modal,.cinematic-modal{z-index:900}.fun-modal-card,.detail-card,.cinematic-card{z-index:1}.toast{z-index:1100}
+.ritual-result-card{position:relative;animation:ritualResultReveal 360ms var(--ease-premium) both}
+.ritual-result-card::before{content:'';display:block;width:42px;height:1px;margin:0 auto 16px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.7}
+@keyframes ritualResultReveal{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+
+.track-item{transition:border-color var(--motion-micro) ease,background var(--motion-micro) ease,transform var(--motion-micro) var(--ease-premium)}
+.track-item:hover{transform:translateY(-1px);border-color:rgba(201,168,76,.28)}
+.track-preview-meta{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 3px}
+.track-preview-meta span{border:1px solid rgba(201,168,76,.22);border-radius:999px;padding:3px 7px;color:rgba(230,205,135,.82);font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase}
+.track-external-note{margin-top:7px;color:rgba(255,255,255,.46);font-family:var(--font-mono);font-size:8px;line-height:1.5;letter-spacing:.04em}
+.track-link{min-height:38px;display:inline-flex;align-items:center;justify-content:center;touch-action:manipulation}
+
+.bubble-wrap::before{content:'';position:absolute;inset:-7px;border-radius:50%;pointer-events:auto}
+.bubble-wrap.newly-released{z-index:8}
+.bubble-wrap.newly-released .bubble-shadow{opacity:1;animation:newEchoArrival 1.8s var(--ease-premium) both}
+.bubble-wrap.newly-released .echo-bubble{outline:1px solid rgba(255,255,255,.56);outline-offset:5px}
+@keyframes newEchoArrival{0%{opacity:0;transform:scale(.72)}45%{opacity:1;transform:scale(1.18)}100%{opacity:.82;transform:scale(1)}}
+@media(pointer:coarse){.bubble-wrap{touch-action:pan-y}.bubble-wrap::before{inset:-12px}}
+
+@media(prefers-reduced-motion:reduce){
+  .view.active.view-entering,.ritual-result-card,.bubble-wrap.newly-released .bubble-shadow{animation:none!important;transform:none!important;opacity:1}
+  .nav-links button:hover,.nav-links button:focus-visible,.fun-card:hover,.mood-btn:hover,.timeline-fallback-card:hover,.track-item:hover{transform:none!important}
+  .nav-links button::after{transition:none!important}
+}
