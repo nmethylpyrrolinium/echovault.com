@@ -71,6 +71,10 @@ if (!index.includes('stress-orb-wrap') || !index.includes('stress-continue-btn')
 if (!script.includes('function beginLoginIntro') || !script.includes('bindStressOrbStart') || !script.includes("target.addEventListener('click', start)") || !script.includes("target.addEventListener('keydown', start)") || !script.includes("target.addEventListener('pointerup', releaseAndStart)") || !script.includes("target.addEventListener('touchend', start")) failures.push('login orb start should support click, keyboard, pointer, and touch');
 if (!style.includes('touch-action:manipulation') || !style.includes('.stress-continue-btn')) failures.push('login press controls missing mobile-friendly CSS');
 if (!script.includes('getAuthRedirectUrl')) failures.push('script.js missing getAuthRedirectUrl helper');
+if (script.includes('NewEcho.start()')) failures.push('new echo reset still calls undefined NewEcho.start');
+if (!script.includes("document.getElementById('new-echo-btn')?.addEventListener('click', reset)")) failures.push('new echo confirmation button should safely reset the entry form');
+if (!script.includes("if (action === 'new-echo') Nav.show('entry')")) failures.push('PWA New Echo shortcut action is not handled');
+if (!script.includes("window.location.protocol === 'file:'") || script.includes("if (isLocalhost) return PRODUCTION_REDIRECT_URL")) failures.push('auth redirects should preserve localhost URLs while falling back for file previews');
 if (!script.includes('https://nmethylpyrrolinium.github.io/echovault.com/')) {
   failures.push('script.js missing production auth redirect URL');
 }
@@ -190,8 +194,12 @@ if (!index.includes('Refresh App Cache') && !script.includes('refresh-app-cache-
 
 // Phase 1 game/community foundation checks
 const sw = fs.readFileSync('sw.js','utf8');
-if (!script.includes("scroll-unlock-overlay-cleanup")) failures.push('APP_VERSION not updated to scroll-unlock-overlay-cleanup');
-if (!script.includes('echovault-v15-scroll-unlock-overlay-cleanup') && !sw.includes('echovault-v15-scroll-unlock-overlay-cleanup')) failures.push('Scroll unlock cache marker missing');
+const scriptAppVersion = script.match(/const\s+APP_VERSION\s*=\s*'([^']+)'/)?.[1];
+const swAppVersion = sw.match(/const\s+APP_VERSION\s*=\s*'([^']+)'/)?.[1];
+const scriptCacheVersion = script.match(/const\s+SW_CACHE_VERSION\s*=\s*'([^']+)'/)?.[1];
+const swCacheVersion = sw.match(/const\s+CACHE\s*=\s*'([^']+)'/)?.[1];
+if (!scriptAppVersion || scriptAppVersion !== swAppVersion) failures.push('App and service-worker APP_VERSION values must match');
+if (!scriptCacheVersion || scriptCacheVersion !== swCacheVersion) failures.push('App and service-worker cache version values must match');
 if (!index.includes('Refresh App Cache') && !script.includes('refresh-app-cache-btn')) failures.push('Refresh App Cache missing');
 
 
@@ -655,6 +663,9 @@ if (/\b(stripe|razorpay|paypal|payment dependency|checkout|pricing page|subscrip
 if (/stripe|razorpay|paypal|payment dependency|checkout|pricing page|subscription/i.test(JSON.stringify(deps))) failures.push('Forbidden payment dependency detected');
 if (Object.keys(deps).some((d) => ['react','vue','angular','next','svelte','tailwindcss','three'].includes(d))) failures.push('Heavy framework dependency added unexpectedly');
 
+
+if (!sw.includes("cached || new Response('', { status: 503 })")) failures.push('service worker fresh-asset fallback must always return a Response');
+if (!sw.includes("e.data?.text()")) failures.push('service worker push handler should tolerate non-JSON payloads');
 
 if (failures.length) {
   console.error('Smoke test failed:');

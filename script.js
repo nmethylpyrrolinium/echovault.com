@@ -2,9 +2,15 @@
 'use strict';
 
 // Keep these version constants declared once only; duplicate consts break startup after merge regressions.
-const APP_VERSION = 'scroll-unlock-overlay-cleanup';
-const SW_CACHE_VERSION = 'echovault-v15-scroll-unlock-overlay-cleanup';
+const APP_VERSION = 'bug-audit-reliability';
+const SW_CACHE_VERSION = 'echovault-v19-bug-audit-reliability';
 console.info('[EchoVault]', APP_VERSION, SW_CACHE_VERSION);
+
+const PRODUCTION_REDIRECT_URL = 'https://nmethylpyrrolinium.github.io/echovault.com/';
+function getAuthRedirectUrl() {
+  if (window.location.protocol === 'file:') return PRODUCTION_REDIRECT_URL;
+  return new URL('./', window.location.href).toString();
+}
 
 const AppEnvironment = (() => {
   function isStandalone() {
@@ -3042,7 +3048,7 @@ const EntryForm = (() => {
     formWrap.style.display = 'block'; confirmEl.classList.remove('show');
   }
 
-  document.getElementById('new-echo-btn').addEventListener('click', () => { reset(); NewEcho.start(); });
+  document.getElementById('new-echo-btn')?.addEventListener('click', reset);
   return {reset, applyVoidState};
 })();
 
@@ -3789,9 +3795,9 @@ const ReceiptRenderer = (() => {
     const intensity = Number(safeMode === 'weekly' ? p.averageIntensity : (latest.intensity ?? 0)) || 0;
     const silence = Number(safeMode === 'weekly' ? p.averageSilence : (latest.silence ?? 0)) || 0;
     const date = new Date();
-    const receiptId = `EV-${Date.now().toString().slice(-6)}` || 'EV-000000';
+    const receiptId = `EV-${Date.now().toString().slice(-6)}`;
     const echoId = latest.id || 'no-echo';
-    const coordinates = `EV-${String(mood || 'reflective').toUpperCase()}-I${String(Math.round(intensity)).padStart(2,'0')}-S${String(Math.round(silence)).padStart(2,'0')}` || 'EV-REFLECTIVE-I00-S00';
+    const coordinates = `EV-${String(mood || 'reflective').toUpperCase()}-I${String(Math.round(intensity)).padStart(2,'0')}-S${String(Math.round(silence)).padStart(2,'0')}`;
     const receiptClass = RECEIPT_CLASSES[mood] || 'Moon Archive Class';
     let latestMaterials = [];
     let latestCrafted = null;
@@ -6199,6 +6205,11 @@ window.EchoVaultBridge = {
 };
 
 /* ── INIT ── */
+function handleLaunchAction() {
+  const action = new URLSearchParams(window.location.search).get('action');
+  if (action === 'new-echo') Nav.show('entry');
+}
+
 let appInitialized = false;
 async function init() {
   if (appInitialized) return;
@@ -6225,6 +6236,7 @@ async function init() {
   MigrationFlow.init();
   PWAInstall.init();
   Login.init();
+  handleLaunchAction();
   AlamAI.bindShortcut();
   ReplayDrift.bind();
   await ServiceWorkerManager.register();
@@ -6265,7 +6277,13 @@ const ServiceWorkerManager = (() => {
     if (!('serviceWorker' in navigator)) return;
     if (sessionStorage.getItem(LAST_VERSION_KEY) === APP_VERSION) sessionStorage.removeItem(UPDATE_GUARD_KEY);
     sessionStorage.setItem(LAST_VERSION_KEY, APP_VERSION);
-    const reg = await navigator.serviceWorker.register('sw.js');
+    let reg;
+    try {
+      reg = await navigator.serviceWorker.register('sw.js');
+    } catch (error) {
+      console.warn('Service worker registration failed; continuing without offline cache.', error);
+      return;
+    }
     const refreshOnce = () => {
       if (sessionStorage.getItem(UPDATE_GUARD_KEY) === APP_VERSION) return;
       sessionStorage.setItem(UPDATE_GUARD_KEY, APP_VERSION);
@@ -6295,13 +6313,6 @@ init();
 
 })();
 
-
-  const PRODUCTION_REDIRECT_URL = 'https://nmethylpyrrolinium.github.io/echovault.com/';
-  function getAuthRedirectUrl() {
-    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
-    if (isLocalhost) return PRODUCTION_REDIRECT_URL;
-    return new URL('./', window.location.href).toString();
-  }
 
 // serviceWorker.register marker retained for smoke tests
 

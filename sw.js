@@ -1,6 +1,6 @@
 // Keep these version constants declared once only; duplicate consts break service-worker startup after merge regressions.
-const APP_VERSION = 'phase8-release-hardening';
-const CACHE = 'echovault-v18-phase8-release-hardening';
+const APP_VERSION = 'bug-audit-reliability';
+const CACHE = 'echovault-v19-bug-audit-reliability';
 
 const toScopeUrl = (path) => new URL(path, self.registration.scope).toString();
 const PRECACHE = ['./', 'index.html', 'styles.css', 'phase2-emotional-intelligence.js', 'script.js', 'manifest.json', 'icons/icon.svg', 'wrapped-cinematic-module.js'];
@@ -61,7 +61,7 @@ self.addEventListener('fetch', (e) => {
           }
           return r;
         })
-        .catch(() => caches.match(e.request))
+        .catch(() => caches.match(e.request).then((cached) => cached || new Response('', { status: 503 })))
     );
     return;
   }
@@ -79,6 +79,12 @@ self.addEventListener('fetch', (e) => {
 });
 
 self.addEventListener('push', (e) => {
-  const d = e.data?.json() || { title: 'EchoVault', body: 'A feeling is waiting.' };
-  e.waitUntil(self.registration.showNotification(d.title, { body: d.body, icon: ICON_URL, badge: ICON_URL, tag: 'echovault' }));
+  let data = { title: 'EchoVault', body: 'A feeling is waiting.' };
+  try {
+    data = { ...data, ...(e.data?.json() || {}) };
+  } catch (error) {
+    const body = e.data?.text();
+    if (body) data.body = body;
+  }
+  e.waitUntil(self.registration.showNotification(data.title, { body: data.body, icon: ICON_URL, badge: ICON_URL, tag: 'echovault' }));
 });
