@@ -23,6 +23,15 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;overflow-y:auto}
+
+/* Reusable static presentation moved out of markup; data-driven colors remain inline. */
+.auth-intro-copy{font-size:15px;font-style:italic;color:var(--muted);margin-top:14px;max-width:320px;line-height:1.7}
+.auth-vault-mark{font-family:var(--font-mono);font-size:9px;letter-spacing:.3em;color:var(--gold);text-transform:uppercase;margin-bottom:28px;opacity:.7}
+.form-label-note{opacity:.4;font-size:9px}
+.vault-actions-spaced{margin-top:32px}
+.new-echo-btn{margin-right:10px}
+.timeline-tide-label{font-family:var(--font-mono);font-size:10px;color:var(--muted);text-align:right}
+
 body{
   background:var(--void);color:var(--text);
   font-family:var(--font-body);font-size:16px;line-height:1.6;
@@ -293,6 +302,7 @@ nav{
 }
 .bubble-wrap:active{cursor:grabbing}
 .echo-bubble{
+  touch-action:none;
   border-radius:50%;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
   position:relative;z-index:2;

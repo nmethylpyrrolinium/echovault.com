@@ -1,5 +1,6 @@
 importScripts('version.js');
 
+// Keep every cache tied to the shared release so GitHub Pages updates purge old local assets together.
 const RELEASE = self.ECHOVAULT_RELEASE;
 const CACHE_PREFIX = 'echovault-';
 const PRECACHE_CACHE = `${CACHE_PREFIX}precache-${RELEASE}`;
@@ -63,6 +64,7 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// Claim clients only after removing prior EchoVault releases; unrelated origin caches remain untouched.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
@@ -79,6 +81,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Runtime-cache only same-origin shell assets; cross-origin CDNs remain network-managed.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;

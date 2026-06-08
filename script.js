@@ -3,7 +3,6 @@
 
 // version.js is the single deployment/cache release source shared by the page and service worker.
 const APP_RELEASE = window.ECHOVAULT_RELEASE || 'unversioned';
-console.info('[EchoVault]', APP_RELEASE);
 
 const PRODUCTION_REDIRECT_URL = 'https://nmethylpyrrolinium.github.io/echovault.com/';
 function getAuthRedirectUrl() {
@@ -369,10 +368,19 @@ function cleanupOverlays(options = {}) {
 }
 
 /* ── STORAGE ── */
+// Preserve malformed user data once per distinct value without creating a new backup on every reload.
 function backupCorruptLocalValue(key, raw) {
   if (!raw) return;
-  try { localStorage.setItem(`echovault_corrupt_backup_${key}_${Date.now()}`, raw); } catch (error) {}
+  try {
+    const prefix = `echovault_corrupt_backup_${key}_`;
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const backupKey = localStorage.key(index);
+      if (backupKey?.startsWith(prefix) && localStorage.getItem(backupKey) === raw) return;
+    }
+    localStorage.setItem(`${prefix}${Date.now()}`, raw);
+  } catch (error) {}
 }
+// Centralize guarded parsing so corrupt or blocked storage never prevents app initialization.
 function safeParseLocalJSON(key, fallback, options = {}) {
   let raw;
   try { raw = localStorage.getItem(key); } catch (error) { return fallback; }
@@ -423,6 +431,7 @@ const Storage = (() => {
     return normalizeEchoes(safeParseLocalJSON(STORAGE_KEY, [], { backup:true }));
   }
   function save(echoes) {
+    // Debounce the single vault write path so rapid UI refreshes cannot duplicate saves.
     clearTimeout(state.lsWriteTimer);
     state.lsWriteTimer = setTimeout(() => {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(echoes)); }
@@ -856,6 +865,7 @@ const SpecialAccessPortal = (() => {
 
 
 const __evBoundListeners = new WeakMap();
+// Prevent duplicate handlers when persistent sections or overlays reinitialize.
 function bindOnce(el, event, handler, options, key) {
   if (!el || !event || !handler) return false;
   let map = __evBoundListeners.get(el);
@@ -2842,12 +2852,11 @@ const OrbInteraction = (() => {
       const now = Date.now();
       if (now - orb.lastTap < 300) { orb.tapCount++; } else { orb.tapCount = 1; }
       orb.lastTap = now;
-      orb.targetScale = 1.14;
-      setTimeout(() => { orb.targetScale = 1; }, 220);
+      // Return to the resting shape without a release-pop that feels disconnected from touch.
+      orb.targetScale = 1;
       if (orb._movedDistance > 10) {
-        const angle = Math.atan2(orb.vy, orb.vx) || Math.random()*Math.PI*2;
-        orb.vx += Math.cos(angle)*1.5;
-        orb.vy += Math.sin(angle)*1.5;
+        orb.vx *= 0.72;
+        orb.vy *= 0.72;
       } else {
         orb.vx *= .25; orb.vy *= .25;
       }
@@ -2865,9 +2874,14 @@ const OrbInteraction = (() => {
       const ty = ev.clientY - dragOffY;
       orb._movedDistance = Math.hypot(ev.clientX - orb._pointerStartX, ev.clientY - orb._pointerStartY);
       if (orb._movedDistance > 10) orb.el.dataset.dragged = 'true';
-      orb.vx += (tx - orb.x) * 0.24;
-      orb.vy += (ty - orb.y) * 0.24;
-      orb.vx *= 0.55; orb.vy *= 0.55;
+      // Keep the artifact close to the pointer while retaining a small, smooth inertial trail.
+      const nextX = orb.x + (tx - orb.x) * 0.72;
+      const nextY = orb.y + (ty - orb.y) * 0.72;
+      orb.vx = nextX - orb.x;
+      orb.vy = nextY - orb.y;
+      orb.x = nextX;
+      orb.y = nextY;
+      el_setTransform(orb);
       if (Math.random() < .15) spawnSparkle(ev.clientX, ev.clientY, orb.color);
     };
     document.addEventListener('pointerup',   upFn,   {once:true});
@@ -4242,7 +4256,7 @@ const EchoAvatar = (() => {
     const gateReady = Boolean(state.echoes.length >= 5 && ArtifactArchive.listArtifacts().length >= 1);
     return `<div class="echo-avatar-card"><div class="echo-avatar-orb"><span>${safe.symbol}</span></div><div class="echo-avatar-kicker">Echo Avatar</div><h4>${safe.name}</h4><div class="echo-avatar-role" data-society-role="${safe.role}">${safe.role} · ${safe.roleTitle}</div>${renderProgress()}<p>Aura: ${safe.aura}</p><p>Archetype: ${safe.archetype}</p><p>Companion symbol: ${safe.symbol}</p><p class="echo-avatar-outfit">${safe.outfit}</p><p class="avatar-accessory-hint">Accessory hint: ${safe.accessory}</p><p class="avatar-next-hint">${next ? `Next unlock: ${escapeHTML(next.title)} at ${next.xp} XP.` : 'Your current path is fully awakened.'}</p><div class="phase-two-note">Society role: <b>${safe.role}</b> · Recommended district: <b>${recommendedDistrict}</b>. ${gateReady ? 'Society Gate can receive you privately.' : 'Society Gate requirement: 5 echoes and 1 saved artifact.'}</div><div class="echo-avatar-actions"><button class="receipt-action-btn" id="avatar-generate-btn">Generate from my profile</button><button class="receipt-action-btn" id="avatar-regenerate-btn">Regenerate role</button><button class="receipt-action-btn" id="avatar-visit-district-btn">Visit my district</button></div></div>`;
   }
-  function bind(){ document.getElementById('avatar-generate-btn')?.addEventListener('click',()=>{build(); refreshEchoDependentUI(); Toast.show('Echo Avatar refreshed.');}); document.getElementById('avatar-regenerate-btn')?.addEventListener('click',()=>{regenerateRole(); refreshEchoDependentUI(); Toast.show('Role regenerated locally.');}); document.getElementById('avatar-visit-district-btn')?.addEventListener('click',()=>{ const ok=Rituals.open?.('museum'); setTimeout(()=>{ document.querySelector('[data-room="society"]')?.click(); document.getElementById('society-enter-btn')?.click(); }, 80); Toast.show('Opening your EchoSociety district.'); }); }
+  function bind(){ bindOnce(document.getElementById('avatar-generate-btn'), 'click',()=>{build(); refreshEchoDependentUI(); Toast.show('Echo Avatar refreshed.');}, undefined, 'avatar:generate'); bindOnce(document.getElementById('avatar-regenerate-btn'), 'click',()=>{regenerateRole(); refreshEchoDependentUI(); Toast.show('Role regenerated locally.');}, undefined, 'avatar:regenerate'); bindOnce(document.getElementById('avatar-visit-district-btn'), 'click',()=>{ Rituals.open?.('museum'); setTimeout(()=>{ document.querySelector('[data-room="society"]')?.click(); document.getElementById('society-enter-btn')?.click(); }, 80); Toast.show('Opening your EchoSociety district.'); }, undefined, 'avatar:visit-district'); }
   return { KEY, load, save, build, regenerateRole, addXP, getProgress, getLevelTitle, getNextUnlock, renderProgress, render, bind };
 })();
 
@@ -6340,6 +6354,7 @@ function handleLaunchAction() {
 }
 
 let appInitialized = false;
+// This guard keeps async startup idempotent when auth, PWA, or navigation callbacks race.
 async function init() {
   if (appInitialized) return;
   appInitialized = true;
@@ -6411,6 +6426,7 @@ const ServiceWorkerManager = (() => {
     try { reg = await navigator.serviceWorker.register('sw.js', { updateViaCache:'none' }); }
     catch (error) { return; }
     if (!reg) return;
+    // Reload at most once per release when a newly activated worker takes control.
     const refreshOnce = () => {
       if (!hadController || sessionStorage.getItem(UPDATE_GUARD_KEY) === APP_RELEASE) return;
       sessionStorage.setItem(UPDATE_GUARD_KEY, APP_RELEASE);
@@ -6433,7 +6449,6 @@ init();
 })();
 
 
-// serviceWorker.register marker retained for smoke tests
 
 
 (function initScrollLockGuard(){

@@ -694,6 +694,8 @@ if (!sw.includes('canCache(response)') || !sw.includes('response.ok')) failures.
 if (!sw.includes("new Response('', { status: 503, statusText: 'Offline' })")) failures.push('service worker network/cache fallbacks must always return a Response');
 if (!sw.includes("event.data?.text()")) failures.push('service worker push handler should tolerate non-JSON payloads');
 if (!script.includes('safeParseLocalJSON') || !script.includes('backupCorruptLocalValue') || !script.includes('normalizeEchoes')) failures.push('Safe localStorage echo recovery helpers missing');
+if (!script.includes("backupKey?.startsWith(prefix) && localStorage.getItem(backupKey) === raw")) failures.push('Corrupt localStorage backup deduplication missing');
+if (!style.includes('touch-action:none') || !script.includes('orb.targetScale = 1') || !script.includes('const nextX = orb.x + (tx - orb.x) * 0.72')) failures.push('Timeline artifact direct-touch continuity safeguards missing');
 if (!script.includes("const parsed = safeParseLocalJSON(KEY, {}, { backup:true });")) failures.push('Preference loading does not use safe backed-up JSON parsing');
 
 if (failures.length) {
