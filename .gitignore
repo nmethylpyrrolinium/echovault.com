@@ -1,5 +1,28 @@
+# Dependencies and generated output
 node_modules/
+dist/
+build/
+coverage/
+
+# Local environment and deployment configuration
+.env
+.env.*
+!.env.example
+*.local
+config.local.js
+
+# Logs, caches, and temporary files
+*.log
+.cache/
+.tmp/
+tmp/
 __pycache__/
 *.py[cod]
-*.log
+
+# Editor and operating-system files
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*~

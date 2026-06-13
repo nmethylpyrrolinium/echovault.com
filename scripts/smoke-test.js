@@ -1,5 +1,4 @@
 const fs = require('fs');
-const crypto = require('crypto');
 
 const failures = [];
 
@@ -53,8 +52,8 @@ function assertFunCard(label, fun, checks) {
 
 // Phase 1 — Supabase/Auth/Profile/PWA checks
 if (!index.includes('window.ECHOVAULT_CONFIG')) failures.push('index.html missing window.ECHOVAULT_CONFIG');
-if (!index.includes('https://phfwaxuyauuyskzruqbk.supabase.co')) failures.push('index.html missing Supabase project URL');
-if (!index.includes('sb_publishable_')) failures.push('index.html missing publishable key prefix');
+if (/https:\/\/[a-z0-9]+\.supabase\.co/i.test(index)) failures.push('index.html contains a hardcoded Supabase project URL');
+if (/sb_(?:publishable|secret)_[A-Za-z0-9_-]+/.test(index)) failures.push('index.html contains a hardcoded Supabase key');
 if (!index.includes('avatars')) failures.push('index.html missing avatars bucket');
 
 if (!script.includes('avatar-file-input')) failures.push('script.js missing avatar-file-input reference');
@@ -106,16 +105,10 @@ if (/id="avatar-file-input"[^>]*display\s*:\s*none/i.test(index)) {
   failures.push('avatar-file-input still uses display:none');
 }
 
-if (!readme.includes('phfwaxuyauuyskzruqbk.supabase.co') || !readme.includes('local mode')) {
-  failures.push('README missing Supabase/local fallback notes');
-}
-if (!readme.includes('{{ .Token }}')) failures.push('README missing {{ .Token }} instructions');
-if (!readme.includes('{{ .ConfirmationURL }}')) failures.push('README missing {{ .ConfirmationURL }} instructions');
-if (!readme.includes('Magic Link')) failures.push('README missing Magic Link wording');
-if (!readme.includes('Site URL')) failures.push('README missing Site URL setup instructions');
-if (!readme.includes('redirect URL')) failures.push('README missing redirect URL setup instructions');
-if (!readme.includes('Email OTP')) failures.push('README missing Email OTP wording');
-if (!readme.includes('60 seconds')) failures.push('README missing 60 seconds rate limit note');
+if (!readme.includes('Supabase') || !readme.includes('local mode')) failures.push('README missing Supabase/local fallback notes');
+if (!readme.includes('.env.example')) failures.push('README missing environment placeholder guidance');
+if (!readme.includes('service-role')) failures.push('README missing frontend credential warning');
+if (!readme.includes('GitHub Pages')) failures.push('README missing deployment guidance');
 
 // PWA checks
 if (!script.includes('beforeinstallprompt')) failures.push('script.js missing beforeinstallprompt handling');
@@ -500,26 +493,12 @@ if (Object.keys(deps).some((d) => ['react','vue','angular','next','svelte'].incl
 if (/\b(stripe|razorpay|paypal|checkout|pricing page|subscription)\b/i.test(script.replace(/No checkout/gi, '').replace(/no checkout/gi, ''))) failures.push('Forbidden payment implementation detected in script');
 
 
-// Special Access hashed-code redemption checks
-const starterCodes = [
-  ['ECHO-FOUNDERS-2026', 'founder'],
-  ['VAULT-ALPHA', 'alpha'],
-  ['NIGHT-ARCHIVIST', 'premium'],
-  ['NIGHT_ARCHIVIST', 'premium']
-];
-const normalizeStarterCode = (code) => String(code || '').trim().toUpperCase().replace(/[\s_-]+/g, '');
-starterCodes.forEach(([code, tier]) => {
-  const digest = crypto.createHash('sha256').update(normalizeStarterCode(code)).digest('hex');
-  if (!index.includes(digest)) failures.push(`ACCESS_CODE_HASHES missing ${tier} starter hash`);
-  if (!new RegExp(`"${digest}"\\s*:\\s*\\{[^}]*tier:\\s*"${tier}"`).test(index)) failures.push(`ACCESS_CODE_HASHES ${tier} hash missing tier payload`);
-  if (script.includes(code)) failures.push(`Plaintext starter code leaked into script.js: ${code}`);
-  if (index.includes(code)) failures.push(`Plaintext starter code leaked into index.html client config: ${code}`);
-});
-if (!/ACCESS_CODE_HASHES:\s*\{\s*"[a-f0-9]{64}"/.test(index)) failures.push('ACCESS_CODE_HASHES should not be empty');
+// Special Access redemption checks
+if (!/ACCESS_CODE_HASHES:\s*\{\s*\}/.test(index)) failures.push('Client ACCESS_CODE_HASHES should remain empty');
 if (!/ACCESS_CODES:\s*\[\s*\]/.test(index)) failures.push('ACCESS_CODES should remain empty to avoid plaintext client codes');
 if (!userAccessSource.includes('async function lookupLocalHash(code)')) failures.push('PremiumCodes.lookupLocalHash missing');
 if (!userAccessSource.includes('hasLocalHashConfig')) failures.push('PremiumCodes should expose local hash configuration detection');
-if (!userAccessSource.includes('hashes[digest]') || !userAccessSource.includes('hashCode(normalized)')) failures.push('Local code unlock path should validate SHA-256 digest against ACCESS_CODE_HASHES');
+if (!userAccessSource.includes('hashes[digest]') || !userAccessSource.includes('hashCode(normalized)')) failures.push('Optional local code unlock path should validate SHA-256 digests');
 if (!userAccessSource.includes('Special codes are not configured for local unlock. Sign in to redeem through Supabase.')) failures.push('Missing empty local hash config guidance');
 if (!userAccessSource.includes('That code didn’t open this room.')) failures.push('Missing invalid special code copy');
 if (!/Auth\.user\s*&&\s*Auth\.client[\s\S]{0,220}\.rpc\('redeem_premium_code'/.test(userAccessSource)) failures.push('Logged-in Supabase RPC redemption path missing');
