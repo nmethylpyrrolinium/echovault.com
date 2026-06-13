@@ -1,14 +1,20 @@
 {
   "name": "echovault.com",
   "version": "1.0.0",
-  "description": "",
+  "description": "A cinematic, local-first emotional journal for the web.",
   "main": "generate-icons.js",
   "scripts": {
     "test": "node scripts/smoke-test.js"
   },
-  "keywords": [],
+  "keywords": [
+    "local-first",
+    "pwa",
+    "creative-coding",
+    "journal",
+    "github-pages"
+  ],
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "type": "commonjs",
   "devDependencies": {
     "sharp": "^0.34.5"
